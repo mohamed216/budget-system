@@ -1,0 +1,12 @@
+services:
+  budget-system:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: budget-system
+    restart: unless-stopped
+    ports:
+      - "8091:8000"
+    volumes:
+      - ./:/var/www/html
+    working_dir: /var/www/html
