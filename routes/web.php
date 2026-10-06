@@ -40,3 +40,21 @@ Route::middleware('auth')->prefix('accounting')->name('accounting.')->group(func
     Route::get('general-ledger', GeneralLedgerController::class)->name('general-ledger');
     Route::get('trial-balance', TrialBalanceController::class)->name('trial-balance');
 });
+
+Route::middleware('auth')->prefix('accounting/pages')->name('accounting-pages.')->controller(\App\Http\Controllers\Accounting\Pages\AccountingPageController::class)->group(function () {
+    Route::get('chart-accounts', 'chartIndex')->name('chart.index');
+    Route::get('chart-accounts/{chartAccount}/edit', 'chartEdit')->whereNumber('chartAccount')->name('chart.edit');
+    Route::post('chart-accounts', 'chartStore')->name('chart.store');
+    Route::put('chart-accounts/{chartAccount}', 'chartUpdate')->whereNumber('chartAccount')->name('chart.update');
+    Route::delete('chart-accounts/{chartAccount}', 'chartDelete')->whereNumber('chartAccount')->name('chart.destroy');
+    Route::get('journals', 'journalIndex')->name('journals.index');
+    Route::get('journals/create', 'journalCreate')->name('journals.create');
+    Route::get('journals/{journal}/edit', 'journalEdit')->whereNumber('journal')->name('journals.edit');
+    Route::get('journals/{journal}', 'journalShow')->whereNumber('journal')->name('journals.show');
+    Route::post('journals', 'journalStore')->name('journals.store');
+    Route::put('journals/{journal}', 'journalUpdate')->whereNumber('journal')->name('journals.update');
+    Route::delete('journals/{journal}', 'journalDelete')->whereNumber('journal')->name('journals.destroy');
+    Route::post('journals/{journal}/post', 'journalPost')->whereNumber('journal')->name('journals.post');
+    Route::get('general-ledger', 'ledger')->name('ledger');
+    Route::get('trial-balance', 'trial')->name('trial');
+});
