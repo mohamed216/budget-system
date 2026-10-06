@@ -24,9 +24,15 @@ class AccountingSchemaTest extends TestCase
 
     private function journal(int $user, array $values = []): int
     {
-        return DB::table('journal_entries')->insertGetId(array_replace([
+        // Insert draft first: schema status checks are exercised through the permitted transition.
+        $id = DB::table('journal_entries')->insertGetId([
             'user_id' => $user, 'entry_date' => '2026-10-06', 'currency' => config('accounting.currency'),
-        ], $values));
+        ]);
+        if ($values !== []) {
+            DB::table('journal_entries')->where('id', $id)->update($values);
+        }
+
+        return $id;
     }
 
     private function line(int $user, int $journal, int $account, array $values = []): int
