@@ -33,6 +33,16 @@ class User extends Authenticatable
         return $this->hasMany(Budget::class);
     }
 
+    public function chartAccounts(): HasMany
+    {
+        return $this->hasMany(ChartAccount::class);
+    }
+
+    public function journalEntries(): HasMany
+    {
+        return $this->hasMany(JournalEntry::class);
+    }
+
     /**
      * The attributes that are mass assignable.
      *
