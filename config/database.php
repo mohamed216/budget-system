@@ -31,6 +31,22 @@ return [
 
     'connections' => [
 
+        // Docker defaults use the mysql service and a dedicated test database/user.
+        // Only TEST_DB_* settings are read: no application credentials or DB_URL fallback.
+        'mysql_testing' => [
+            'driver' => 'mysql',
+            'host' => env('TEST_DB_HOST', 'mysql'),
+            'port' => env('TEST_DB_PORT', '3306'),
+            'database' => env('TEST_DB_DATABASE', 'budget_system_test'),
+            'username' => env('TEST_DB_USERNAME', 'budget_test'),
+            'password' => env('TEST_DB_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+            'engine' => 'InnoDB',
+        ],
+
         'sqlite' => [
             'driver' => 'sqlite',
             'url' => env('DB_URL'),

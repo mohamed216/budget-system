@@ -3,6 +3,10 @@
 .env
 .env.backup
 .env.production
+.env.testing
+*.backup
+.env.*.backup
+/database/budget_system_before_phase1.sql
 .phpactor.json
 .phpunit.result.cache
 /.fleet
