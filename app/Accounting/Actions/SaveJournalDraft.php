@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Accounting\Actions;
 
+use App\Accounting\AccountingPeriodLocks;
 use App\Accounting\DecimalAmount;
 use App\Accounting\Exceptions\AccountingConflict;
+use App\Accounting\PeriodGuard;
 use App\Models\ChartAccount;
 use App\Models\JournalEntry;
 use App\Models\JournalLine;
@@ -47,6 +49,12 @@ final class SaveJournalDraft
         }
 
         return DB::transaction(function () use ($actor, $journalId, $version, $fields, $normalized) {
+            AccountingPeriodLocks::owner($actor);
+            if ($journalId !== null) {
+                // Preserve foreign/missing 404s before the period check, without taking a journal lock.
+                JournalEntry::ownedBy($actor)->whereKey($journalId)->firstOrFail();
+            }
+            (new PeriodGuard)->assertOpen($actor, $fields['entry_date']);
             if ($journalId === null) {
                 if ($version !== null) {
                     throw new AccountingConflict('New drafts do not accept a version override.');

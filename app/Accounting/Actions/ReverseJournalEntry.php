@@ -2,8 +2,10 @@
 
 namespace App\Accounting\Actions;
 
+use App\Accounting\AccountingPeriodLocks;
 use App\Accounting\DecimalAmount;
 use App\Accounting\Exceptions\AccountingConflict;
+use App\Accounting\PeriodGuard;
 use App\Models\JournalEntry;
 use App\Models\JournalLine;
 use App\Models\User;
@@ -15,6 +17,11 @@ final class ReverseJournalEntry
     public function execute(User $actor, int $journalEntryId): JournalEntry
     {
         return DB::transaction(function () use ($actor, $journalEntryId) {
+            AccountingPeriodLocks::owner($actor);
+            // Resolve ownership before checking the current period, without taking a journal lock.
+            JournalEntry::ownedBy($actor)->whereKey($journalEntryId)->firstOrFail();
+            $reversalDate = now()->toDateString();
+            (new PeriodGuard)->assertOpen($actor, $reversalDate);
             $original = JournalEntry::ownedBy($actor)->whereKey($journalEntryId)->lockForUpdate()->firstOrFail();
             if (! $original->isPosted() || $original->reversal_of_id !== null) {
                 throw new AccountingConflict('Only an original posted journal can be reversed.');
@@ -59,7 +66,7 @@ final class ReverseJournalEntry
             }
 
             $reversal = new JournalEntry([
-                'entry_date' => now()->toDateString(),
+                'entry_date' => $reversalDate,
                 'currency' => $original->currency,
                 'reference' => 'REV-'.$original->id,
                 'description' => 'Reversal of journal entry #'.$original->id,

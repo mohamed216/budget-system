@@ -291,7 +291,7 @@ class AccountingActionTest extends TestCase
         $this->assertSame(['actor', 'code', 'name', 'type', 'isActive', 'parentId'], array_map(fn ($p) => $p->getName(), (new \ReflectionMethod(CreateChartAccount::class, 'execute'))->getParameters()));
     }
 
-    public function test_locking_sql_orders_header_lines_then_distinct_chart_accounts(): void
+    public function test_locking_sql_orders_owner_period_header_lines_then_distinct_chart_accounts(): void
     {
         $first = $this->account();
         $second = $this->account('1001');
@@ -301,12 +301,14 @@ class AccountingActionTest extends TestCase
         try {
             (new SaveJournalDraft)->execute($this->owner, '2026-10-06', config('accounting.currency'), [$this->line($second), $this->line($first), $this->line($second)], journalId: $journal->id, version: 1);
             $locks = array_values(array_filter(DB::getQueryLog(), fn ($q) => str_contains($q['query'], 'for update')));
-            $this->assertCount(3, $locks);
-            $this->assertStringContainsString('journal_entries', $locks[0]['query']);
-            $this->assertStringContainsString('journal_lines', $locks[1]['query']);
-            $this->assertStringContainsString('chart_of_accounts', $locks[2]['query']);
-            $this->assertStringContainsString('order by `id` asc', $locks[2]['query']);
-            $this->assertSame([$this->owner->id, $first->id, $second->id], $locks[2]['bindings']);
+            $this->assertCount(5, $locks);
+            $this->assertStringContainsString('users', $locks[0]['query']);
+            $this->assertStringContainsString('accounting_periods', $locks[1]['query']);
+            $this->assertStringContainsString('journal_entries', $locks[2]['query']);
+            $this->assertStringContainsString('journal_lines', $locks[3]['query']);
+            $this->assertStringContainsString('chart_of_accounts', $locks[4]['query']);
+            $this->assertStringContainsString('order by `id` asc', $locks[4]['query']);
+            $this->assertSame([$this->owner->id, $first->id, $second->id], $locks[4]['bindings']);
             DB::flushQueryLog();
             $this->update($first, ['name' => 'Renamed']);
             $locks = array_values(array_filter(DB::getQueryLog(), fn ($q) => str_contains($q['query'], 'for update')));

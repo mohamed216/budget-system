@@ -11,7 +11,7 @@
     @csrf
     @if($journal) @method('PUT') <input type="hidden" name="version" value="{{ old('version', $journal->version) }}"> @endif
     <section class="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:grid-cols-2">
-        <label class="text-sm">تاريخ القيد<input type="date" name="entry_date" required value="{{ old('entry_date', $journal?->entry_date->format('Y-m-d') ?? date('Y-m-d')) }}" class="mt-1 block w-full rounded-lg border border-slate-300 p-2.5">@error('entry_date')<span class="text-red-700">{{ $message }}</span>@enderror</label>
+        <label class="text-sm">تاريخ القيد<input type="date" name="entry_date" required value="{{ old('entry_date', $journal?->entry_date->format('Y-m-d') ?? now()->toDateString()) }}" class="mt-1 block w-full rounded-lg border border-slate-300 p-2.5">@error('entry_date')<span class="text-red-700">{{ $message }}</span>@enderror</label>
         <label class="text-sm">العملة<input name="currency" readonly value="{{ config('accounting.currency') }}" class="mt-1 block w-full rounded-lg border border-slate-300 bg-slate-50 p-2.5" dir="ltr">@error('currency')<span class="text-red-700">{{ $message }}</span>@enderror</label>
         <label class="text-sm">المرجع<input name="reference" maxlength="100" value="{{ old('reference', $journal?->reference) }}" class="mt-1 block w-full rounded-lg border border-slate-300 p-2.5">@error('reference')<span class="text-red-700">{{ $message }}</span>@enderror</label>
         <label class="text-sm">الوصف<textarea name="description" class="mt-1 block w-full rounded-lg border border-slate-300 p-2.5">{{ old('description', $journal?->description) }}</textarea>@error('description')<span class="text-red-700">{{ $message }}</span>@enderror</label>

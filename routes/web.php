@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\Accounting\AccountingPeriodController;
 use App\Http\Controllers\Accounting\ChartAccountController;
 use App\Http\Controllers\Accounting\GeneralLedgerController;
 use App\Http\Controllers\Accounting\JournalEntryController;
@@ -27,6 +28,13 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::middleware('auth')->prefix('accounting')->name('accounting.')->group(function () {
+    Route::get('periods', [AccountingPeriodController::class, 'index'])->name('periods.index');
+    Route::post('periods', [AccountingPeriodController::class, 'store'])->name('periods.store');
+    Route::get('periods/{period}', [AccountingPeriodController::class, 'show'])->whereNumber('period')->name('periods.show');
+    Route::put('periods/{period}', [AccountingPeriodController::class, 'update'])->whereNumber('period')->name('periods.update');
+    Route::post('periods/{period}/close', [AccountingPeriodController::class, 'close'])->whereNumber('period')->name('periods.close');
+    Route::post('periods/{period}/reopen', [AccountingPeriodController::class, 'reopen'])->whereNumber('period')->name('periods.reopen');
+    Route::delete('periods/{period}', [AccountingPeriodController::class, 'destroy'])->whereNumber('period')->name('periods.destroy');
     Route::get('chart-accounts', [ChartAccountController::class, 'index'])->name('chart-accounts.index');
     Route::post('chart-accounts', [ChartAccountController::class, 'store'])->name('chart-accounts.store');
     Route::put('chart-accounts/{chartAccount}', [ChartAccountController::class, 'update'])->whereNumber('chartAccount')->name('chart-accounts.update');
@@ -43,6 +51,12 @@ Route::middleware('auth')->prefix('accounting')->name('accounting.')->group(func
 });
 
 Route::middleware('auth')->prefix('accounting/pages')->name('accounting-pages.')->controller(\App\Http\Controllers\Accounting\Pages\AccountingPageController::class)->group(function () {
+    Route::get('periods', 'periodIndex')->name('periods.index');
+    Route::post('periods', 'periodStore')->name('periods.store');
+    Route::put('periods/{period}', 'periodUpdate')->whereNumber('period')->name('periods.update');
+    Route::post('periods/{period}/close', 'periodClose')->whereNumber('period')->name('periods.close');
+    Route::post('periods/{period}/reopen', 'periodReopen')->whereNumber('period')->name('periods.reopen');
+    Route::delete('periods/{period}', 'periodDelete')->whereNumber('period')->name('periods.destroy');
     Route::get('chart-accounts', 'chartIndex')->name('chart.index');
     Route::get('chart-accounts/{chartAccount}/edit', 'chartEdit')->whereNumber('chartAccount')->name('chart.edit');
     Route::post('chart-accounts', 'chartStore')->name('chart.store');

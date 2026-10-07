@@ -23,6 +23,7 @@ class AccountingPageTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutVite();
         $this->owner = User::factory()->create();
         $this->foreign = User::factory()->create();
     }
@@ -50,10 +51,10 @@ class AccountingPageTest extends TestCase
 
     public function test_guests_cannot_access_any_page_or_mutation(): void
     {
-        foreach (['chart-accounts', 'chart-accounts/1/edit', 'journals', 'journals/create', 'journals/1', 'journals/1/edit', 'general-ledger', 'trial-balance'] as $path) {
+        foreach (['periods', 'chart-accounts', 'chart-accounts/1/edit', 'journals', 'journals/create', 'journals/1', 'journals/1/edit', 'general-ledger', 'trial-balance'] as $path) {
             $this->get('/accounting/pages/'.$path)->assertRedirect(route('login'));
         }
-        foreach ([['POST', 'chart-accounts'], ['PUT', 'chart-accounts/1'], ['DELETE', 'chart-accounts/1'], ['POST', 'journals'], ['PUT', 'journals/1'], ['DELETE', 'journals/1'], ['POST', 'journals/1/post'], ['POST', 'journals/1/reverse']] as [$method, $path]) {
+        foreach ([['POST', 'periods'], ['PUT', 'periods/1'], ['POST', 'periods/1/close'], ['POST', 'periods/1/reopen'], ['DELETE', 'periods/1'], ['POST', 'chart-accounts'], ['PUT', 'chart-accounts/1'], ['DELETE', 'chart-accounts/1'], ['POST', 'journals'], ['PUT', 'journals/1'], ['DELETE', 'journals/1'], ['POST', 'journals/1/post'], ['POST', 'journals/1/reverse']] as [$method, $path]) {
             $this->call($method, '/accounting/pages/'.$path)->assertRedirect(route('login'));
         }
     }
@@ -61,9 +62,9 @@ class AccountingPageTest extends TestCase
     public function test_navigation_and_empty_pages_render(): void
     {
         $this->actingAs($this->owner);
-        foreach (['chart-accounts', 'journals', 'journals/create', 'general-ledger', 'trial-balance'] as $path) {
+        foreach (['periods', 'chart-accounts', 'journals', 'journals/create', 'general-ledger', 'trial-balance'] as $path) {
             $response = $this->get('/accounting/pages/'.$path)->assertOk();
-            foreach (['chart.index', 'journals.index', 'ledger', 'trial'] as $route) {
+            foreach (['chart.index', 'journals.index', 'periods.index', 'ledger', 'trial'] as $route) {
                 $response->assertSee(route('accounting-pages.'.$route), false);
             }
         }

@@ -58,6 +58,9 @@ class AccountingHttpTest extends TestCase
     {
         foreach ([['GET', '/accounting/chart-accounts'], ['POST', '/accounting/chart-accounts'],
             ['PUT', '/accounting/chart-accounts/1'], ['DELETE', '/accounting/chart-accounts/1'],
+            ['GET', '/accounting/periods'], ['POST', '/accounting/periods'], ['GET', '/accounting/periods/1'],
+            ['PUT', '/accounting/periods/1'], ['POST', '/accounting/periods/1/close'],
+            ['POST', '/accounting/periods/1/reopen'], ['DELETE', '/accounting/periods/1'],
             ['GET', '/accounting/journals'], ['GET', '/accounting/journals/1'], ['POST', '/accounting/journals'],
             ['PUT', '/accounting/journals/1'], ['DELETE', '/accounting/journals/1'], ['POST', '/accounting/journals/1/post'],
             ['POST', '/accounting/journals/1/reverse'],
@@ -70,7 +73,7 @@ class AccountingHttpTest extends TestCase
     public function test_route_set_is_authenticated_and_has_no_independent_line_crud(): void
     {
         $routes = collect(Route::getRoutes())->filter(fn ($route) => str_starts_with($route->getName() ?? '', 'accounting.'));
-        $this->assertCount(13, $routes);
+        $this->assertCount(20, $routes);
         foreach ($routes as $route) {
             $this->assertContains('auth', $route->gatherMiddleware());
             $this->assertContains('web', $route->gatherMiddleware());

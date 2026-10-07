@@ -2,8 +2,10 @@
 
 namespace App\Accounting\Actions;
 
+use App\Accounting\AccountingPeriodLocks;
 use App\Accounting\DecimalAmount;
 use App\Accounting\Exceptions\AccountingConflict;
+use App\Accounting\PeriodGuard;
 use App\Models\ChartAccount;
 use App\Models\JournalEntry;
 use App\Models\User;
@@ -15,9 +17,27 @@ final class PostJournalEntry
     public function execute(User $actor, int $journalId): JournalEntry
     {
         return DB::transaction(function () use ($actor, $journalId) {
+            AccountingPeriodLocks::owner($actor);
+            // Read ownership and date without a journal lock; the owner lock serializes all app writes.
+            $candidate = JournalEntry::ownedBy($actor)->whereKey($journalId)->firstOrFail();
+            $periodConflict = null;
+            if (! $candidate->isPosted()) {
+                try {
+                    (new PeriodGuard)->assertOpen($actor, $candidate->entry_date->toDateString());
+                } catch (AccountingConflict $exception) {
+                    // A prior repeatable-read snapshot can show a draft already posted by another transaction.
+                    $periodConflict = $exception;
+                }
+            }
             $journal = JournalEntry::ownedBy($actor)->whereKey($journalId)->lockForUpdate()->firstOrFail();
             if ($journal->isPosted()) {
                 return $journal;
+            }
+            if ($journal->entry_date->toDateString() !== $candidate->entry_date->toDateString()) {
+                throw new AccountingConflict('Journal date changed while posting; reload the draft.');
+            }
+            if ($periodConflict !== null) {
+                throw $periodConflict;
             }
             if (! $journal->isDraft()) {
                 throw new AccountingConflict('Only draft journals can be posted.');
