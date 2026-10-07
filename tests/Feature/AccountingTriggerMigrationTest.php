@@ -38,27 +38,38 @@ class AccountingTriggerMigrationTest extends TestCase
             'accounting_jl_immutable_bd' => ['journal_lines', 'DELETE'],
             'accounting_jl_immutable_bi' => ['journal_lines', 'INSERT'],
             'accounting_jl_immutable_bu' => ['journal_lines', 'UPDATE'],
+            'accounting_obb_draft_bi' => ['opening_balance_batches', 'INSERT'],
+            'accounting_obb_immutable_bd' => ['opening_balance_batches', 'DELETE'],
+            'accounting_obb_immutable_bu' => ['opening_balance_batches', 'UPDATE'],
+            'accounting_obl_immutable_bd' => ['opening_balance_lines', 'DELETE'],
+            'accounting_obl_immutable_bi' => ['opening_balance_lines', 'INSERT'],
+            'accounting_obl_immutable_bu' => ['opening_balance_lines', 'UPDATE'],
         ];
         $this->assertCount(count($expected), $before);
         foreach ($before as $trigger) {
+            $this->assertArrayHasKey($trigger->TRIGGER_NAME, $expected);
             $this->assertSame($expected[$trigger->TRIGGER_NAME], [$trigger->EVENT_OBJECT_TABLE, $trigger->EVENT_MANIPULATION]);
             $this->assertSame('BEFORE', $trigger->ACTION_TIMING);
-            if ($trigger->EVENT_OBJECT_TABLE === 'journal_lines') {
+            if (in_array($trigger->EVENT_OBJECT_TABLE, ['journal_lines', 'opening_balance_lines'], true)) {
                 $this->assertStringContainsString('FOR SHARE NOWAIT', $trigger->ACTION_STATEMENT);
                 $this->assertStringNotContainsString('FOR UPDATE', $trigger->ACTION_STATEMENT);
             }
         }
-        $counts = [DB::table('journal_entries')->count(), DB::table('journal_lines')->count()];
+        $openingTriggers = array_values(array_filter($before, fn ($trigger) => in_array($trigger->EVENT_OBJECT_TABLE, ['opening_balance_batches', 'opening_balance_lines'], true)));
+        $counts = [DB::table('journal_entries')->count(), DB::table('journal_lines')->count(),
+            DB::table('opening_balance_batches')->count(), DB::table('opening_balance_lines')->count()];
         try {
             $migration->down();
-            $this->assertSame([], $this->triggers());
+            $this->assertEquals($openingTriggers, $this->triggers());
             $migration->down();
+            $this->assertEquals($openingTriggers, $this->triggers());
         } finally {
             $migration->up();
         }
         $migration->up();
         $this->assertEquals($before, $this->triggers());
-        $this->assertSame($counts, [DB::table('journal_entries')->count(), DB::table('journal_lines')->count()]);
+        $this->assertSame($counts, [DB::table('journal_entries')->count(), DB::table('journal_lines')->count(),
+            DB::table('opening_balance_batches')->count(), DB::table('opening_balance_lines')->count()]);
     }
 
     public function test_conflicting_identity_or_body_fails_preflight_without_dropping_other_triggers(): void

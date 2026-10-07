@@ -120,7 +120,7 @@
                     </a>
 
                     <p class="border-t border-slate-100 px-3 pt-4 text-xs font-semibold text-slate-400">المحاسبة</p>
-                    @foreach(['chart.index' => 'دليل الحسابات', 'journals.index' => 'القيود اليومية', 'periods.index' => 'الفترات المحاسبية', 'ledger' => 'الأستاذ العام', 'trial' => 'ميزان المراجعة', 'income-statement' => 'قائمة الدخل', 'balance-sheet' => 'قائمة المركز المالي'] as $page => $label)
+                    @foreach(['chart.index' => 'دليل الحسابات', 'journals.index' => 'القيود اليومية', 'opening-balances.index' => 'الأرصدة الافتتاحية', 'periods.index' => 'الفترات المحاسبية', 'ledger' => 'الأستاذ العام', 'trial' => 'ميزان المراجعة', 'income-statement' => 'قائمة الدخل', 'balance-sheet' => 'قائمة المركز المالي'] as $page => $label)
                         <a href="{{ route('accounting-pages.'.$page) }}" @if(request()->routeIs('accounting-pages.'.explode('.', $page)[0].'*')) aria-current="page" @endif
                            class="block rounded-xl px-4 py-2 text-sm font-medium {{ request()->routeIs('accounting-pages.'.explode('.', $page)[0].'*') ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50' }}">{{ $label }}</a>
                     @endforeach

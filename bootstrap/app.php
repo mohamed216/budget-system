@@ -14,8 +14,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Preserve exact decimal input syntax on journal and opening-balance endpoints.
-        $middleware->trimStrings(except: [fn (Request $request) => $request->is('accounting/journals', 'accounting/journals/*', 'accounting/pages/journals', 'accounting/pages/journals/*', 'accounting/opening-balances', 'accounting/opening-balances/*')]);
+        // Preserve exact decimal input syntax on journal and opening-balance endpoints and forms.
+        $middleware->trimStrings(except: [fn (Request $request) => $request->is('accounting/journals', 'accounting/journals/*', 'accounting/pages/journals', 'accounting/pages/journals/*', 'accounting/opening-balances', 'accounting/opening-balances/*', 'accounting/pages/opening-balances', 'accounting/pages/opening-balances/*')]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(fn (Request $request, Throwable $exception) => $request->routeIs('accounting.*') || $request->expectsJson());

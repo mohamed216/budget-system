@@ -61,6 +61,12 @@ Route::middleware('auth')->prefix('accounting')->name('accounting.')->group(func
 });
 
 Route::middleware('auth')->prefix('accounting/pages')->name('accounting-pages.')->controller(\App\Http\Controllers\Accounting\Pages\AccountingPageController::class)->group(function () {
+    Route::get('opening-balances', 'openingBalanceIndex')->name('opening-balances.index');
+    Route::post('opening-balances', 'openingBalanceStore')->name('opening-balances.store');
+    Route::get('opening-balances/{openingBalance}', 'openingBalanceShow')->whereNumber('openingBalance')->name('opening-balances.show');
+    Route::put('opening-balances/{openingBalance}', 'openingBalanceUpdate')->whereNumber('openingBalance')->name('opening-balances.update');
+    Route::delete('opening-balances/{openingBalance}', 'openingBalanceDelete')->whereNumber('openingBalance')->name('opening-balances.destroy');
+    Route::post('opening-balances/{openingBalance}/post', 'openingBalancePost')->whereNumber('openingBalance')->name('opening-balances.post');
     Route::get('periods', 'periodIndex')->name('periods.index');
     Route::post('periods', 'periodStore')->name('periods.store');
     Route::put('periods/{period}', 'periodUpdate')->whereNumber('period')->name('periods.update');

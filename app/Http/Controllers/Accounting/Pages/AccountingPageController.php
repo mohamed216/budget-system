@@ -5,15 +5,19 @@ namespace App\Http\Controllers\Accounting\Pages;
 use App\Accounting\Actions\CloseAccountingPeriod;
 use App\Accounting\Actions\CreateAccountingPeriod;
 use App\Accounting\Actions\CreateChartAccount;
+use App\Accounting\Actions\CreateOpeningBalanceDraft;
 use App\Accounting\Actions\DeleteAccountingPeriod;
 use App\Accounting\Actions\DeleteChartAccount;
 use App\Accounting\Actions\DeleteJournalDraft;
+use App\Accounting\Actions\DeleteOpeningBalanceDraft;
 use App\Accounting\Actions\PostJournalEntry;
+use App\Accounting\Actions\PostOpeningBalanceBatch;
 use App\Accounting\Actions\ReopenAccountingPeriod;
 use App\Accounting\Actions\ReverseJournalEntry;
 use App\Accounting\Actions\SaveJournalDraft;
 use App\Accounting\Actions\UpdateAccountingPeriod;
 use App\Accounting\Actions\UpdateChartAccount;
+use App\Accounting\Actions\UpdateOpeningBalanceDraft;
 use App\Accounting\Exceptions\AccountingConflict;
 use App\Accounting\Queries\GeneralLedgerQuery;
 use App\Accounting\Queries\IncomeStatementQuery;
@@ -25,16 +29,136 @@ use App\Http\Requests\Accounting\ChartAccountRequest;
 use App\Http\Requests\Accounting\GeneralLedgerPageRequest;
 use App\Http\Requests\Accounting\IncomeStatementPageRequest;
 use App\Http\Requests\Accounting\JournalPageRequest;
+use App\Http\Requests\Accounting\OpeningBalancePageRequest;
 use App\Http\Requests\Accounting\StatementOfFinancialPositionPageRequest;
 use App\Http\Requests\Accounting\TrialBalanceRequest;
 use App\Models\AccountingPeriod;
 use App\Models\ChartAccount;
 use App\Models\JournalEntry;
+use App\Models\OpeningBalanceBatch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 class AccountingPageController extends Controller
 {
+    private function openingBalance(Request $request, string $id): OpeningBalanceBatch
+    {
+        return OpeningBalanceBatch::ownedBy($request->user())->findOrFail($id);
+    }
+
+    private function openingBalanceError(Request $request, string $destination, string $message)
+    {
+        return redirect($destination)->withInput($request->except('_token'))->withErrors(['accounting' => $message]);
+    }
+
+    private function openingBalanceValidationMessage(ValidationException $exception): string
+    {
+        $errors = $exception->errors();
+        if (isset($errors['currency'])) {
+            return 'العملة لا تطابق عملة المحاسبة المعتمدة.';
+        }
+        foreach (array_keys($errors) as $field) {
+            if (preg_match('/^lines\.\d+\.chart_account_id$/D', $field)) {
+                return 'الحساب مكرر داخل الدفعة.';
+            }
+        }
+        if (str_contains(implode(' ', $errors['lines'] ?? []), 'accounts must')) {
+            return 'لا يمكن استخدام حساب غير نشط أو غير متاح.';
+        }
+
+        return 'الأرصدة الافتتاحية غير متوازنة أو غير صالحة.';
+    }
+
+    public function openingBalanceIndex(Request $request)
+    {
+        return view('accounting.opening-balances', [
+            'batches' => OpeningBalanceBatch::ownedBy($request->user())->orderByDesc('opening_date')->orderByDesc('id')->get(),
+            'accounts' => ChartAccount::ownedBy($request->user())->where('is_active', true)->orderBy('code')->orderBy('id')->get(),
+        ]);
+    }
+
+    public function openingBalanceShow(Request $request, string $openingBalance)
+    {
+        $batch = $this->openingBalance($request, $openingBalance);
+        $batch->load([
+            'lines' => fn ($query) => $query->ownedBy($request->user()),
+            'lines.chartAccount' => fn ($query) => $query->ownedBy($request->user()),
+            'journalEntry' => fn ($query) => $query->ownedBy($request->user()),
+        ]);
+
+        return view('accounting.opening-balance', [
+            'batch' => $batch,
+            'accounts' => ChartAccount::ownedBy($request->user())->orderBy('code')->orderBy('id')->get(),
+        ]);
+    }
+
+    public function openingBalanceStore(OpeningBalancePageRequest $request, CreateOpeningBalanceDraft $action)
+    {
+        $data = $request->validated();
+        try {
+            $batch = $action->execute($request->user(), $data['opening_date'], $data['currency'], $data['lines']);
+        } catch (ValidationException $exception) {
+            return $this->openingBalanceError($request, route('accounting-pages.opening-balances.index'), $this->openingBalanceValidationMessage($exception));
+        } catch (AccountingConflict $exception) {
+            return $this->openingBalanceError($request, route('accounting-pages.opening-balances.index'), 'تاريخ الافتتاح يقع ضمن فترة محاسبية مغلقة.');
+        }
+
+        return redirect()->route('accounting-pages.opening-balances.show', $batch->id)->with('success', 'تم حفظ مسودة الأرصدة الافتتاحية.');
+    }
+
+    public function openingBalanceUpdate(OpeningBalancePageRequest $request, string $openingBalance, UpdateOpeningBalanceDraft $action)
+    {
+        $batch = $this->openingBalance($request, $openingBalance);
+        $destination = route('accounting-pages.opening-balances.show', $batch->id);
+        if ($batch->isPosted()) {
+            return $this->openingBalanceError($request, $destination, 'لا يمكن تعديل أرصدة افتتاحية تم ترحيلها.');
+        }
+        $data = $request->validated();
+        try {
+            $action->execute($request->user(), $batch->id, $data['opening_date'], $data['currency'], $data['lines']);
+        } catch (ValidationException $exception) {
+            return $this->openingBalanceError($request, $destination, $this->openingBalanceValidationMessage($exception));
+        } catch (AccountingConflict $exception) {
+            $message = str_contains($exception->getMessage(), 'period')
+                ? 'تاريخ الافتتاح يقع ضمن فترة محاسبية مغلقة.' : 'لا يمكن تعديل أرصدة افتتاحية تم ترحيلها.';
+
+            return $this->openingBalanceError($request, $destination, $message);
+        }
+
+        return redirect($destination)->with('success', 'تم تحديث مسودة الأرصدة الافتتاحية.');
+    }
+
+    public function openingBalanceDelete(Request $request, string $openingBalance, DeleteOpeningBalanceDraft $action)
+    {
+        $batch = $this->openingBalance($request, $openingBalance);
+        $destination = route('accounting-pages.opening-balances.show', $batch->id);
+        try {
+            $action->execute($request->user(), $batch->id);
+        } catch (AccountingConflict $exception) {
+            return $this->openingBalanceError($request, $destination, 'لا يمكن حذف أرصدة افتتاحية تم ترحيلها.');
+        }
+
+        return redirect()->route('accounting-pages.opening-balances.index')->with('success', 'تم حذف مسودة الأرصدة الافتتاحية.');
+    }
+
+    public function openingBalancePost(Request $request, string $openingBalance, PostOpeningBalanceBatch $action)
+    {
+        $batch = $this->openingBalance($request, $openingBalance);
+        $destination = route('accounting-pages.opening-balances.show', $batch->id);
+        try {
+            $action->execute($request->user(), $batch->id);
+        } catch (AccountingConflict $exception) {
+            $message = str_contains($exception->getMessage(), 'period')
+                ? 'تاريخ الافتتاح يقع ضمن فترة محاسبية مغلقة.'
+                : 'تعذر ترحيل الأرصدة الافتتاحية. تحقق من العملة والحسابات النشطة وتوازن السطور.';
+
+            return $this->openingBalanceError($request, $destination, $message);
+        }
+
+        return redirect($destination)->with('success', 'تم ترحيل الأرصدة الافتتاحية وإنشاء القيد المرتبط.');
+    }
+
     private function accounts(Request $request)
     {
         return ChartAccount::ownedBy($request->user())->orderBy('code')->orderBy('id')->get();
