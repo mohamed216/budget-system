@@ -138,7 +138,7 @@ class AccountingModelPolicyTest extends TestCase
     {
         $cases = [
             [new ChartAccount, ['user_id', 'id']],
-            [new JournalEntry, ['user_id', 'status', 'posted_at', 'version', 'id']],
+            [new JournalEntry, ['user_id', 'status', 'posted_at', 'version', 'id', 'reversal_of_id']],
             [new JournalLine, ['user_id', 'journal_entry_id', 'line_number', 'id']],
         ];
         foreach ($cases as [$model, $fields]) {

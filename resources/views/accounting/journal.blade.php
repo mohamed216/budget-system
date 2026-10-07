@@ -13,11 +13,22 @@
             <div><dt class="text-slate-500">الإصدار</dt><dd class="mt-1 font-semibold">{{ $journal->version }}</dd></div>
             @if($journal->isPosted())<div><dt class="text-slate-500">وقت الترحيل</dt><dd dir="ltr" class="mt-1 text-right">{{ $journal->posted_at->format('Y-m-d H:i:s.u') }}</dd></div>@endif
         </dl><p class="mt-4 whitespace-pre-wrap break-words text-sm">{{ $journal->description ?? '—' }}</p>
+        @if($journal->reversalOf)
+            <p class="mt-4 rounded-xl bg-indigo-50 p-3 text-sm text-indigo-800">هذا قيد عكسي للقيد رقم {{ $journal->reversalOf->id }}. <a href="{{ route('accounting-pages.journals.show', $journal->reversalOf->id) }}" class="font-semibold underline">عرض القيد الأصلي</a></p>
+        @elseif($journal->reversal)
+            <p class="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">تم عكس هذا القيد. <a href="{{ route('accounting-pages.journals.show', $journal->reversal->id) }}" class="font-semibold underline">عرض القيد العكسي</a></p>
+        @endif
         @if($journal->isDraft())<div class="mt-5 flex flex-wrap gap-3">
             <a href="{{ route('accounting-pages.journals.edit', $journal->id) }}" class="rounded-xl border border-indigo-200 px-4 py-2 text-indigo-700">تعديل المسودة</a>
             <form method="POST" action="{{ route('accounting-pages.journals.post', $journal->id) }}" onsubmit="return confirm('ترحيل القيد؟ بعد الترحيل لا يمكن تعديله أو حذفه.')">@csrf<button class="rounded-xl bg-emerald-600 px-4 py-2 text-white">ترحيل القيد</button></form>
             <form method="POST" action="{{ route('accounting-pages.journals.destroy', $journal->id) }}" onsubmit="return confirm('حذف المسودة وسطورها؟')">@csrf @method('DELETE')<button class="rounded-xl bg-red-50 px-4 py-2 text-red-700">حذف المسودة</button></form>
         </div>@endif
+        @if($journal->isPosted() && $canReverse)
+            <div class="mt-5">
+                <p class="mb-3 text-sm text-slate-600">لن يُعدّل القيد الأصلي أو يُحذف. سينشأ قيد عكسي جديد ومرحل ضمن السجل المحاسبي الدائم.</p>
+                <form method="POST" action="{{ route('accounting-pages.journals.reverse', $journal->id) }}" onsubmit="return confirm('لن يُعدّل القيد الأصلي أو يُحذف. سيُنشأ قيد عكسي جديد ومرحل، وستبقى العملية في السجل المحاسبي بشكل دائم. هل تريد المتابعة؟')">@csrf<button class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-amber-900">عكس القيد</button></form>
+            </div>
+        @endif
     </section>
     <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white"><table class="w-full min-w-[600px] text-right text-sm">
         <thead class="bg-slate-50"><tr>@foreach(['السطر', 'الحساب', 'مدين', 'دائن', 'الوصف'] as $label)<th class="p-4">{{ $label }}</th>@endforeach</tr></thead>

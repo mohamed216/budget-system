@@ -37,6 +37,7 @@ Route::middleware('auth')->prefix('accounting')->name('accounting.')->group(func
     Route::put('journals/{journal}', [JournalEntryController::class, 'update'])->whereNumber('journal')->name('journals.update');
     Route::delete('journals/{journal}', [JournalEntryController::class, 'destroy'])->whereNumber('journal')->name('journals.destroy');
     Route::post('journals/{journal}/post', [JournalEntryController::class, 'post'])->whereNumber('journal')->name('journals.post');
+    Route::post('journals/{journal}/reverse', [JournalEntryController::class, 'reverse'])->whereNumber('journal')->name('journals.reverse');
     Route::get('general-ledger', GeneralLedgerController::class)->name('general-ledger');
     Route::get('trial-balance', TrialBalanceController::class)->name('trial-balance');
 });
@@ -55,6 +56,7 @@ Route::middleware('auth')->prefix('accounting/pages')->name('accounting-pages.')
     Route::put('journals/{journal}', 'journalUpdate')->whereNumber('journal')->name('journals.update');
     Route::delete('journals/{journal}', 'journalDelete')->whereNumber('journal')->name('journals.destroy');
     Route::post('journals/{journal}/post', 'journalPost')->whereNumber('journal')->name('journals.post');
+    Route::post('journals/{journal}/reverse', 'journalReverse')->whereNumber('journal')->name('journals.reverse');
     Route::get('general-ledger', 'ledger')->name('ledger');
     Route::get('trial-balance', 'trial')->name('trial');
 });

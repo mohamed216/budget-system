@@ -38,6 +38,12 @@ class JournalEntryPolicy
         return $this->view($user, $record) && $record->isDraft();
     }
 
+    public function reverse(User $user, JournalEntry $record): bool
+    {
+        return $this->view($user, $record) && $record->isPosted()
+            && $record->reversal_of_id === null && ! $record->reversal()->exists();
+    }
+
     public function restore(User $user, JournalEntry $record): bool
     {
         return false;

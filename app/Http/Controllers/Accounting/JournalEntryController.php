@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Accounting;
 
 use App\Accounting\Actions\DeleteJournalDraft;
 use App\Accounting\Actions\PostJournalEntry;
+use App\Accounting\Actions\ReverseJournalEntry;
 use App\Accounting\Actions\SaveJournalDraft;
+use App\Accounting\Exceptions\AccountingConflict;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Accounting\JournalDraftRequest;
 use App\Models\JournalEntry;
@@ -70,6 +72,17 @@ class JournalEntryController extends Controller
         $entry = $action->execute($request->user(), $entry->id);
 
         return response()->json(['data' => $this->withLines($entry, $request->user())]);
+    }
+
+    public function reverse(Request $request, string $journal, ReverseJournalEntry $action): JsonResponse
+    {
+        $entry = JournalEntry::ownedBy($request->user())->findOrFail($journal);
+        if (Gate::inspect('reverse', $entry)->denied()) {
+            throw new AccountingConflict('Only an unreversed original posted journal can be reversed.');
+        }
+        $reversal = $action->execute($request->user(), $entry->id);
+
+        return response()->json(['data' => $this->withLines($reversal, $request->user())], 201);
     }
 
     private function withLines(JournalEntry $entry, User $actor): JournalEntry

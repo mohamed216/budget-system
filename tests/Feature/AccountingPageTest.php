@@ -53,7 +53,7 @@ class AccountingPageTest extends TestCase
         foreach (['chart-accounts', 'chart-accounts/1/edit', 'journals', 'journals/create', 'journals/1', 'journals/1/edit', 'general-ledger', 'trial-balance'] as $path) {
             $this->get('/accounting/pages/'.$path)->assertRedirect(route('login'));
         }
-        foreach ([['POST', 'chart-accounts'], ['PUT', 'chart-accounts/1'], ['DELETE', 'chart-accounts/1'], ['POST', 'journals'], ['PUT', 'journals/1'], ['DELETE', 'journals/1'], ['POST', 'journals/1/post']] as [$method, $path]) {
+        foreach ([['POST', 'chart-accounts'], ['PUT', 'chart-accounts/1'], ['DELETE', 'chart-accounts/1'], ['POST', 'journals'], ['PUT', 'journals/1'], ['DELETE', 'journals/1'], ['POST', 'journals/1/post'], ['POST', 'journals/1/reverse']] as [$method, $path]) {
             $this->call($method, '/accounting/pages/'.$path)->assertRedirect(route('login'));
         }
     }

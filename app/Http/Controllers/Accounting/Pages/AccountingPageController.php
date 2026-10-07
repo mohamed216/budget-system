@@ -6,6 +6,7 @@ use App\Accounting\Actions\CreateChartAccount;
 use App\Accounting\Actions\DeleteChartAccount;
 use App\Accounting\Actions\DeleteJournalDraft;
 use App\Accounting\Actions\PostJournalEntry;
+use App\Accounting\Actions\ReverseJournalEntry;
 use App\Accounting\Actions\SaveJournalDraft;
 use App\Accounting\Actions\UpdateChartAccount;
 use App\Accounting\Exceptions\AccountingConflict;
@@ -94,7 +95,9 @@ class AccountingPageController extends Controller
     {
         Gate::authorize('viewAny', JournalEntry::class);
 
-        return view('accounting.journals', ['journals' => JournalEntry::ownedBy($request->user())->orderByDesc('entry_date')->orderByDesc('id')->get()]);
+        return view('accounting.journals', ['journals' => JournalEntry::ownedBy($request->user())
+            ->with(['reversal' => fn ($query) => $query->ownedBy($request->user())])
+            ->orderByDesc('entry_date')->orderByDesc('id')->get()]);
     }
 
     public function journalCreate(Request $request)
@@ -114,9 +117,14 @@ class AccountingPageController extends Controller
     public function journalShow(Request $request, string $journal)
     {
         $entry = $this->journal($request, $journal, 'view');
-        $entry->load(['lines' => fn ($q) => $q->ownedBy($request->user()), 'lines.chartAccount' => fn ($q) => $q->ownedBy($request->user())]);
+        $entry->load([
+            'lines' => fn ($q) => $q->ownedBy($request->user()),
+            'lines.chartAccount' => fn ($q) => $q->ownedBy($request->user()),
+            'reversal' => fn ($q) => $q->ownedBy($request->user()),
+            'reversalOf' => fn ($q) => $q->ownedBy($request->user()),
+        ]);
 
-        return view('accounting.journal', ['journal' => $entry]);
+        return view('accounting.journal', ['journal' => $entry, 'canReverse' => Gate::allows('reverse', $entry)]);
     }
 
     public function journalStore(JournalPageRequest $request, SaveJournalDraft $action)
@@ -156,6 +164,22 @@ class AccountingPageController extends Controller
         Gate::authorize($entry->isPosted() ? 'view' : 'post', $entry);
 
         return $this->mutate($request, fn () => $action->execute($request->user(), $entry->id), route('accounting-pages.journals.show', $entry->id));
+    }
+
+    public function journalReverse(Request $request, string $journal, ReverseJournalEntry $action)
+    {
+        $entry = $this->journal($request, $journal, 'view');
+        try {
+            if (Gate::inspect('reverse', $entry)->denied()) {
+                throw new AccountingConflict('لا يمكن عكس هذا القيد؛ يجب أن يكون قيداً أصلياً مرحلاً ولم يُعكس من قبل.');
+            }
+            $reversal = $action->execute($request->user(), $entry->id);
+        } catch (AccountingConflict $exception) {
+            return back()->withInput($request->except('_token'))->withErrors(['accounting' => $exception->getMessage()]);
+        }
+
+        return redirect()->route('accounting-pages.journals.show', $reversal->id)
+            ->with('success', 'تم إنشاء القيد العكسي وترحيله بنجاح.');
     }
 
     public function ledger(GeneralLedgerPageRequest $request, GeneralLedgerQuery $query)

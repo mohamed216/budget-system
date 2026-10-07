@@ -82,6 +82,9 @@ class AccountingSchemaTest extends TestCase
             foreach (['created_at', 'updated_at'] as $timestamp) {
                 $columns[$timestamp] = ['timestamp', true, null];
             }
+            if ($table === 'journal_entries') {
+                $columns['reversal_of_id'] = ['bigint unsigned', true, null];
+            }
             $this->assertSame(array_keys($columns), $actual->keys()->all());
             foreach ($columns as $name => [$type, $nullable, $default]) {
                 $this->assertSame([$type, $nullable, $default], [$actual[$name]['type'], $actual[$name]['nullable'], $actual[$name]['default']], "{$table}.{$name}");
@@ -99,12 +102,12 @@ class AccountingSchemaTest extends TestCase
     {
         $indexes = [
             'chart_of_accounts' => ['coa_owner_code_unique' => [['user_id', 'code'], true], 'coa_id_owner_unique' => [['id', 'user_id'], true], 'coa_parent_owner_index' => [['parent_id', 'user_id'], false], 'coa_owner_type_active_index' => [['user_id', 'type', 'is_active', 'id'], false]],
-            'journal_entries' => ['je_id_owner_unique' => [['id', 'user_id'], true], 'je_owner_status_date_index' => [['user_id', 'status', 'entry_date', 'id'], false]],
+            'journal_entries' => ['je_id_owner_unique' => [['id', 'user_id'], true], 'je_owner_status_date_index' => [['user_id', 'status', 'entry_date', 'id'], false], 'je_reversal_of_unique' => [['reversal_of_id'], true], 'je_reversal_owner_index' => [['reversal_of_id', 'user_id'], false]],
             'journal_lines' => ['jl_entry_number_unique' => [['journal_entry_id', 'line_number'], true], 'jl_entry_owner_index' => [['journal_entry_id', 'user_id'], false], 'jl_account_owner_index' => [['chart_account_id', 'user_id'], false]],
         ];
         $foreignKeys = [
             'chart_of_accounts' => ['coa_user_fk' => [['user_id'], 'users', ['id']], 'coa_parent_owner_fk' => [['parent_id', 'user_id'], 'chart_of_accounts', ['id', 'user_id']]],
-            'journal_entries' => ['je_user_fk' => [['user_id'], 'users', ['id']]],
+            'journal_entries' => ['je_user_fk' => [['user_id'], 'users', ['id']], 'je_reversal_owner_fk' => [['reversal_of_id', 'user_id'], 'journal_entries', ['id', 'user_id']]],
             'journal_lines' => ['jl_entry_owner_fk' => [['journal_entry_id', 'user_id'], 'journal_entries', ['id', 'user_id']], 'jl_account_owner_fk' => [['chart_account_id', 'user_id'], 'chart_of_accounts', ['id', 'user_id']]],
         ];
         foreach ($indexes as $table => $definitions) {

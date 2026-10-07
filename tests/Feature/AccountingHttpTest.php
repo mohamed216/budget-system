@@ -60,6 +60,7 @@ class AccountingHttpTest extends TestCase
             ['PUT', '/accounting/chart-accounts/1'], ['DELETE', '/accounting/chart-accounts/1'],
             ['GET', '/accounting/journals'], ['GET', '/accounting/journals/1'], ['POST', '/accounting/journals'],
             ['PUT', '/accounting/journals/1'], ['DELETE', '/accounting/journals/1'], ['POST', '/accounting/journals/1/post'],
+            ['POST', '/accounting/journals/1/reverse'],
             ['GET', '/accounting/general-ledger'], ['GET', '/accounting/trial-balance']] as [$method, $uri]) {
             $this->json($method, $uri)->assertUnauthorized();
         }
@@ -69,7 +70,7 @@ class AccountingHttpTest extends TestCase
     public function test_route_set_is_authenticated_and_has_no_independent_line_crud(): void
     {
         $routes = collect(Route::getRoutes())->filter(fn ($route) => str_starts_with($route->getName() ?? '', 'accounting.'));
-        $this->assertCount(12, $routes);
+        $this->assertCount(13, $routes);
         foreach ($routes as $route) {
             $this->assertContains('auth', $route->gatherMiddleware());
             $this->assertContains('web', $route->gatherMiddleware());
