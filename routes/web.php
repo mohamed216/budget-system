@@ -4,7 +4,9 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Accounting\AccountingPeriodController;
 use App\Http\Controllers\Accounting\ChartAccountController;
 use App\Http\Controllers\Accounting\GeneralLedgerController;
+use App\Http\Controllers\Accounting\IncomeStatementController;
 use App\Http\Controllers\Accounting\JournalEntryController;
+use App\Http\Controllers\Accounting\StatementOfFinancialPositionController;
 use App\Http\Controllers\Accounting\TrialBalanceController;
 use App\Http\Controllers\AuthenticatedSessionController;
 use App\Http\Controllers\BudgetController;
@@ -48,6 +50,8 @@ Route::middleware('auth')->prefix('accounting')->name('accounting.')->group(func
     Route::post('journals/{journal}/reverse', [JournalEntryController::class, 'reverse'])->whereNumber('journal')->name('journals.reverse');
     Route::get('general-ledger', GeneralLedgerController::class)->name('general-ledger');
     Route::get('trial-balance', TrialBalanceController::class)->name('trial-balance');
+    Route::get('income-statement', IncomeStatementController::class)->name('income-statement');
+    Route::get('balance-sheet', StatementOfFinancialPositionController::class)->name('balance-sheet');
 });
 
 Route::middleware('auth')->prefix('accounting/pages')->name('accounting-pages.')->controller(\App\Http\Controllers\Accounting\Pages\AccountingPageController::class)->group(function () {
