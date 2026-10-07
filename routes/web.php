@@ -77,4 +77,6 @@ Route::middleware('auth')->prefix('accounting/pages')->name('accounting-pages.')
     Route::post('journals/{journal}/reverse', 'journalReverse')->whereNumber('journal')->name('journals.reverse');
     Route::get('general-ledger', 'ledger')->name('ledger');
     Route::get('trial-balance', 'trial')->name('trial');
+    Route::get('income-statement', 'incomeStatement')->name('income-statement');
+    Route::get('balance-sheet', 'balanceSheet')->name('balance-sheet');
 });
