@@ -30,12 +30,25 @@ final class OpeningBalanceInput
     /** Normalize only draft line input; the composite foreign keys remain the final ownership guard. */
     public static function lines(User $owner, array $lines): array
     {
+        $normalized = self::normalizeLines($lines);
+        $accountIds = array_column($normalized, 'chart_account_id');
+
+        if ($accountIds !== [] && ChartAccount::ownedBy($owner)->whereIn('id', $accountIds)->count() !== count($accountIds)) {
+            throw ValidationException::withMessages(['lines' => 'Every account must belong to the batch owner.']);
+        }
+
+        return $normalized;
+    }
+
+    /** Pure string-money validation; actions recheck account ownership under row locks. */
+    public static function normalizeLines(array $lines): array
+    {
         if (! array_is_list($lines)) {
             throw ValidationException::withMessages(['lines' => 'Lines must be a list.']);
         }
 
         Validator::make(['lines' => $lines], [
-            'lines' => ['array'],
+            'lines' => ['array', 'max:65535'],
             'lines.*' => ['required', 'array:chart_account_id,debit,credit'],
             'lines.*.chart_account_id' => ['required', 'integer', 'min:1'],
             'lines.*.debit' => ['required'],
@@ -66,10 +79,6 @@ final class OpeningBalanceInput
                 'debit' => $debit->toDecimal(),
                 'credit' => $credit->toDecimal(),
             ];
-        }
-
-        if ($accountIds !== [] && ChartAccount::ownedBy($owner)->whereIn('id', array_keys($accountIds))->count() !== count($accountIds)) {
-            throw ValidationException::withMessages(['lines' => 'Every account must belong to the batch owner.']);
         }
 
         return $normalized;

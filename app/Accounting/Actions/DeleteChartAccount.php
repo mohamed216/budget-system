@@ -16,6 +16,9 @@ final class DeleteChartAccount
             if ($accounts->contains('parent_id', $accountId) || $account->journalLines()->exists()) {
                 throw new AccountingConflict('Chart account with children or journal lines cannot be deleted.');
             }
+            if ($account->openingBalanceLines()->exists()) {
+                throw new AccountingConflict('Chart account with opening balance lines cannot be deleted.');
+            }
             $account->delete();
         }, 3);
     }
