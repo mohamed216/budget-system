@@ -48,6 +48,11 @@ class User extends Authenticatable
         return $this->hasMany(AccountingPeriod::class);
     }
 
+    public function openingBalanceBatches(): HasMany
+    {
+        return $this->hasMany(OpeningBalanceBatch::class);
+    }
+
     /**
      * The attributes that are mass assignable.
      *

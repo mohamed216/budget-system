@@ -40,6 +40,11 @@ class JournalEntry extends Model
         return $this->hasOne(self::class, 'reversal_of_id');
     }
 
+    public function openingBalanceBatch(): HasOne
+    {
+        return $this->hasOne(OpeningBalanceBatch::class);
+    }
+
     public function isDraft(): bool
     {
         return $this->status === 'draft';

@@ -31,4 +31,9 @@ class ChartAccount extends Model
     {
         return $this->hasMany(JournalLine::class, 'chart_account_id');
     }
+
+    public function openingBalanceLines(): HasMany
+    {
+        return $this->hasMany(OpeningBalanceLine::class, 'chart_account_id');
+    }
 }
