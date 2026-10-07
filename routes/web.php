@@ -6,6 +6,7 @@ use App\Http\Controllers\Accounting\ChartAccountController;
 use App\Http\Controllers\Accounting\GeneralLedgerController;
 use App\Http\Controllers\Accounting\IncomeStatementController;
 use App\Http\Controllers\Accounting\JournalEntryController;
+use App\Http\Controllers\Accounting\OpeningBalanceController;
 use App\Http\Controllers\Accounting\StatementOfFinancialPositionController;
 use App\Http\Controllers\Accounting\TrialBalanceController;
 use App\Http\Controllers\AuthenticatedSessionController;
@@ -30,6 +31,11 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::middleware('auth')->prefix('accounting')->name('accounting.')->group(function () {
+    Route::post('opening-balances', [OpeningBalanceController::class, 'store'])->name('opening-balances.store');
+    Route::get('opening-balances/{openingBalance}', [OpeningBalanceController::class, 'show'])->whereNumber('openingBalance')->name('opening-balances.show');
+    Route::put('opening-balances/{openingBalance}', [OpeningBalanceController::class, 'update'])->whereNumber('openingBalance')->name('opening-balances.update');
+    Route::delete('opening-balances/{openingBalance}', [OpeningBalanceController::class, 'destroy'])->whereNumber('openingBalance')->name('opening-balances.destroy');
+    Route::post('opening-balances/{openingBalance}/post', [OpeningBalanceController::class, 'post'])->whereNumber('openingBalance')->name('opening-balances.post');
     Route::get('periods', [AccountingPeriodController::class, 'index'])->name('periods.index');
     Route::post('periods', [AccountingPeriodController::class, 'store'])->name('periods.store');
     Route::get('periods/{period}', [AccountingPeriodController::class, 'show'])->whereNumber('period')->name('periods.show');
