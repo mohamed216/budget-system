@@ -7,6 +7,7 @@ use App\Accounting\Actions\PostJournalEntry;
 use App\Accounting\Actions\SaveJournalDraft;
 use App\Accounting\Queries\GeneralLedgerQuery;
 use App\Accounting\Queries\TrialBalanceQuery;
+use App\Http\Controllers\Accounting\Pages\ChartAccountPageController;
 use App\Http\Controllers\Accounting\Pages\LedgerReportPageController;
 use App\Models\ChartAccount;
 use App\Models\JournalEntry;
@@ -53,6 +54,58 @@ class AccountingPageTest extends TestCase
     private function draft(array $lines = [], ?User $user = null): JournalEntry
     {
         return (new SaveJournalDraft)->execute($user ?? $this->owner, '2026-10-06', config('accounting.currency'), $lines, 'UI reference', 'UI description');
+    }
+
+    public function test_chart_page_routes_keep_their_contract_and_new_controller_target(): void
+    {
+        foreach ([
+            ['chart.index', 'GET', 'chart-accounts', 'chartIndex'],
+            ['chart.edit', 'GET', 'chart-accounts/{chartAccount}/edit', 'chartEdit'],
+            ['chart.store', 'POST', 'chart-accounts', 'chartStore'],
+            ['chart.update', 'PUT', 'chart-accounts/{chartAccount}', 'chartUpdate'],
+            ['chart.destroy', 'DELETE', 'chart-accounts/{chartAccount}', 'chartDelete'],
+        ] as [$name, $method, $path, $action]) {
+            $route = Route::getRoutes()->getByName('accounting-pages.'.$name);
+            $this->assertNotNull($route);
+            $this->assertSame('accounting/pages/'.$path, $route->uri());
+            $this->assertSame($method === 'GET' ? ['GET', 'HEAD'] : [$method], $route->methods());
+            $this->assertSame(ChartAccountPageController::class, $route->getControllerClass());
+            $this->assertSame($action, $route->getActionMethod());
+            $this->assertContains('web', $route->gatherMiddleware());
+            $this->assertContains('auth', $route->gatherMiddleware());
+        }
+    }
+
+    public function test_chart_page_view_data_and_parent_selector_keep_owned_order_and_inactive_accounts(): void
+    {
+        $later = $this->account('2000');
+        $earlier = $this->account('1000');
+        $earlier->update(['is_active' => false]);
+        $this->account('SECRET', $this->foreign);
+
+        $this->actingAs($this->owner)->get(route('accounting-pages.chart.index'))
+            ->assertOk()->assertViewIs('accounting.chart')
+            ->assertViewHas('accounts', fn ($accounts) => $accounts->pluck('id')->all() === [$earlier->id, $later->id])
+            ->assertViewHas('editing', null)
+            ->assertSee('value="'.$earlier->id.'"', false)->assertDontSee('SECRET');
+        $this->get(route('accounting-pages.chart.edit', $later->id))
+            ->assertOk()->assertViewIs('accounting.chart')
+            ->assertViewHas('accounts', fn ($accounts) => $accounts->pluck('id')->all() === [$earlier->id, $later->id])
+            ->assertViewHas('editing', fn ($editing) => $editing->id === $later->id)
+            ->assertSee('value="'.$earlier->id.'"', false)
+            ->assertDontSee('<option value="'.$later->id.'"', false);
+    }
+
+    public function test_chart_update_validation_preserves_old_input_without_mutating_the_account(): void
+    {
+        $account = $this->account();
+        $edit = route('accounting-pages.chart.edit', $account->id);
+        $this->actingAs($this->owner)->from($edit)->put(route('accounting-pages.chart.update', $account->id), [
+            'code' => 'BAD CODE', 'name' => 'Unsaved Name', 'type' => 'asset', 'is_active' => '1',
+        ])->assertRedirect($edit)->assertSessionHasErrors('code');
+        $this->get($edit)->assertOk()->assertSee('value="BAD CODE"', false)
+            ->assertSee('value="Unsaved Name"', false);
+        $this->assertSame('1000', $account->fresh()->code);
     }
 
     public function test_ledger_report_page_routes_preserve_their_contract(): void
