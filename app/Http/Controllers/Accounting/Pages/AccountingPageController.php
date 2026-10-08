@@ -15,14 +15,11 @@ use App\Accounting\Actions\SaveJournalDraft;
 use App\Accounting\Actions\UpdateAccountingPeriod;
 use App\Accounting\Actions\UpdateChartAccount;
 use App\Accounting\Exceptions\AccountingConflict;
-use App\Accounting\Queries\GeneralLedgerQuery;
-use App\Accounting\Queries\TrialBalanceQuery;
+use App\Accounting\Queries\OwnedChartAccounts;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Accounting\AccountingPeriodRequest;
 use App\Http\Requests\Accounting\ChartAccountRequest;
-use App\Http\Requests\Accounting\GeneralLedgerPageRequest;
 use App\Http\Requests\Accounting\JournalPageRequest;
-use App\Http\Requests\Accounting\TrialBalanceRequest;
 use App\Models\AccountingPeriod;
 use App\Models\ChartAccount;
 use App\Models\JournalEntry;
@@ -31,14 +28,16 @@ use Illuminate\Support\Facades\Gate;
 
 class AccountingPageController extends Controller
 {
+    public function __construct(private readonly OwnedChartAccounts $accounts) {}
+
     private function accounts(Request $request)
     {
-        return ChartAccount::ownedBy($request->user())->orderBy('code')->orderBy('id')->get();
+        return $this->accounts->ordered($request->user());
     }
 
     private function chart(Request $request, string $id, string $ability): ChartAccount
     {
-        $account = ChartAccount::ownedBy($request->user())->findOrFail($id);
+        $account = $this->accounts->find($request->user(), $id);
         Gate::authorize($ability, $account);
 
         return $account;
@@ -245,35 +244,5 @@ class AccountingPageController extends Controller
 
         return redirect()->route('accounting-pages.journals.show', $reversal->id)
             ->with('success', 'تم إنشاء القيد العكسي وترحيله بنجاح.');
-    }
-
-    public function ledger(GeneralLedgerPageRequest $request, GeneralLedgerQuery $query)
-    {
-        Gate::authorize('viewAny', ChartAccount::class);
-        $report = null;
-        if ($request->hasAny(['chart_account_id', 'date_from', 'date_to'])) {
-            $d = $request->validated();
-            $account = $this->chart($request, (string) $d['chart_account_id'], 'view');
-            try {
-                $report = $query->execute($request->user(), $account->id, $d['date_from'] ?? null, $d['date_to'] ?? null);
-            } catch (AccountingConflict $exception) {
-                return response()->view('accounting.ledger', ['accounts' => $this->accounts($request), 'report' => null,
-                    'conflict' => 'تعذر عرض الأستاذ بسبب اختلاف عملات القيود المرحلة أو عدم توازنها.'], 409);
-            }
-        }
-
-        return view('accounting.ledger', ['accounts' => $this->accounts($request), 'report' => $report, 'conflict' => null]);
-    }
-
-    public function trial(TrialBalanceRequest $request, TrialBalanceQuery $query)
-    {
-        Gate::authorize('viewAny', ChartAccount::class);
-        try {
-            $report = $query->execute($request->user(), $request->validated()['as_of'] ?? null);
-        } catch (AccountingConflict $exception) {
-            return response()->view('accounting.trial', ['report' => null, 'conflict' => $exception->getMessage()], 409);
-        }
-
-        return view('accounting.trial', ['report' => $report, 'conflict' => null]);
     }
 }

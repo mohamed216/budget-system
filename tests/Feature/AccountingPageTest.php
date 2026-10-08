@@ -5,10 +5,16 @@ namespace Tests\Feature;
 use App\Accounting\Actions\CreateChartAccount;
 use App\Accounting\Actions\PostJournalEntry;
 use App\Accounting\Actions\SaveJournalDraft;
+use App\Accounting\Queries\GeneralLedgerQuery;
+use App\Accounting\Queries\TrialBalanceQuery;
+use App\Http\Controllers\Accounting\Pages\LedgerReportPageController;
 use App\Models\ChartAccount;
 use App\Models\JournalEntry;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
+use PDOException;
 use Tests\Concerns\RefreshFinancialDatabase;
 use Tests\TestCase;
 
@@ -47,6 +53,57 @@ class AccountingPageTest extends TestCase
     private function draft(array $lines = [], ?User $user = null): JournalEntry
     {
         return (new SaveJournalDraft)->execute($user ?? $this->owner, '2026-10-06', config('accounting.currency'), $lines, 'UI reference', 'UI description');
+    }
+
+    public function test_ledger_report_page_routes_preserve_their_contract(): void
+    {
+        foreach (['ledger' => 'general-ledger', 'trial' => 'trial-balance'] as $name => $path) {
+            $route = Route::getRoutes()->getByName('accounting-pages.'.$name);
+            $this->assertNotNull($route);
+            $this->assertSame('accounting/pages/'.$path, $route->uri());
+            $this->assertSame(['GET', 'HEAD'], $route->methods());
+            $this->assertSame(LedgerReportPageController::class, $route->getControllerClass());
+            $this->assertContains('web', $route->gatherMiddleware());
+            $this->assertContains('auth', $route->gatherMiddleware());
+        }
+    }
+
+    public function test_ledger_report_pages_preserve_view_data_and_owner_scoped_account_order(): void
+    {
+        $later = $this->account('2000');
+        $earlier = $this->account('1000');
+        $this->account('SECRET', $this->foreign);
+        $this->actingAs($this->owner)->get(route('accounting-pages.ledger'))
+            ->assertOk()->assertViewIs('accounting.ledger')
+            ->assertViewHasAll(['accounts', 'report', 'conflict'])
+            ->assertViewHas('accounts', fn ($accounts) => $accounts->pluck('id')->all() === [$earlier->id, $later->id])
+            ->assertViewHas('report', null)->assertViewHas('conflict', null);
+        $this->get(route('accounting-pages.ledger', ['chart_account_id' => $later->id]))
+            ->assertOk()->assertViewHas('report', fn ($report) => is_array($report));
+        $this->get(route('accounting-pages.trial'))
+            ->assertOk()->assertViewIs('accounting.trial')
+            ->assertViewHasAll(['report', 'conflict'])
+            ->assertViewHas('report', fn ($report) => is_array($report))
+            ->assertViewHas('conflict', null);
+    }
+
+    public function test_ledger_report_pages_sanitize_unexpected_query_failures(): void
+    {
+        $account = $this->account();
+        foreach ([
+            [GeneralLedgerQuery::class, route('accounting-pages.ledger', ['chart_account_id' => $account->id])],
+            [TrialBalanceQuery::class, route('accounting-pages.trial')],
+        ] as [$queryClass, $url]) {
+            $this->app->bind($queryClass, fn () => throw new QueryException('mysql_testing',
+                'private_sql_text', [], new PDOException('private_database_detail')));
+            try {
+                $this->actingAs($this->owner)->get($url)->assertStatus(500)
+                    ->assertViewIs('accounting.error')->assertSee('تعذر تحميل الصفحة المحاسبية.')
+                    ->assertDontSee('private_sql_text')->assertDontSee('private_database_detail');
+            } finally {
+                $this->app->bind($queryClass, $queryClass);
+            }
+        }
     }
 
     public function test_guests_cannot_access_any_page_or_mutation(): void

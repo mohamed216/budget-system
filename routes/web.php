@@ -6,6 +6,7 @@ use App\Http\Controllers\Accounting\ChartAccountController;
 use App\Http\Controllers\Accounting\FiscalYearCloseController;
 use App\Http\Controllers\Accounting\Pages\FinancialStatementPageController;
 use App\Http\Controllers\Accounting\Pages\FiscalYearClosePageController;
+use App\Http\Controllers\Accounting\Pages\LedgerReportPageController;
 use App\Http\Controllers\Accounting\Pages\OpeningBalancePageController;
 use App\Http\Controllers\Accounting\GeneralLedgerController;
 use App\Http\Controllers\Accounting\IncomeStatementController;
@@ -98,8 +99,8 @@ Route::middleware('auth')->prefix('accounting/pages')->name('accounting-pages.')
     Route::delete('journals/{journal}', 'journalDelete')->whereNumber('journal')->name('journals.destroy');
     Route::post('journals/{journal}/post', 'journalPost')->whereNumber('journal')->name('journals.post');
     Route::post('journals/{journal}/reverse', 'journalReverse')->whereNumber('journal')->name('journals.reverse');
-    Route::get('general-ledger', 'ledger')->name('ledger');
-    Route::get('trial-balance', 'trial')->name('trial');
+    Route::get('general-ledger', [LedgerReportPageController::class, 'ledger'])->name('ledger');
+    Route::get('trial-balance', [LedgerReportPageController::class, 'trial'])->name('trial');
     Route::get('income-statement', [FinancialStatementPageController::class, 'incomeStatement'])->name('income-statement');
     Route::get('balance-sheet', [FinancialStatementPageController::class, 'balanceSheet'])->name('balance-sheet');
 });
