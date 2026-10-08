@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\DeleteCategory;
+use App\Actions\Exceptions\CategoryHasReferences;
 use App\Http\Requests\StoreCategoryRequest;
 use App\Models\Category;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 class CategoryController extends Controller
@@ -25,17 +25,13 @@ class CategoryController extends Controller
         return redirect()->route('categories.index')->with('success', 'Category created');
     }
 
-    public function destroy(Category $category)
+    public function destroy(Request $request, Category $category, DeleteCategory $deleteCategory)
     {
-        Gate::authorize('delete', $category);
-        DB::transaction(function () use ($category) {
-            $locked = Category::query()->lockForUpdate()->findOrFail($category->id);
-            Gate::authorize('delete', $locked);
-            if ($locked->transactions()->exists() || $locked->budgets()->exists()) {
-                throw ValidationException::withMessages(['category' => 'A category with transactions or budgets cannot be deleted.']);
-            }
-            $locked->delete();
-        });
+        try {
+            $deleteCategory->execute($request->user(), $category);
+        } catch (CategoryHasReferences) {
+            throw ValidationException::withMessages(['category' => 'A category with transactions or budgets cannot be deleted.']);
+        }
 
         return redirect()->route('categories.index')->with('success', 'Category deleted');
     }
