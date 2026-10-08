@@ -321,6 +321,22 @@ class JournalPeriodGuardTest extends TestCase
         });
     }
 
+    public function test_close_racing_with_draft_delete_waits_and_stranded_delete_remains_allowed(): void
+    {
+        $this->raceFixture(function (User $owner, ChartAccount $account, $period): void {
+            $draft = $this->draft($owner, $account);
+            DB::beginTransaction();
+            (new \App\Accounting\Actions\DeleteJournalDraft)->execute($owner, $draft->id);
+            $this->assertCloseWaits($owner, $period->id);
+            DB::rollBack();
+
+            (new CloseAccountingPeriod)->execute($owner, $period->id);
+            $this->assertNotNull($draft->fresh());
+            (new \App\Accounting\Actions\DeleteJournalDraft)->execute($owner, $draft->id);
+            $this->assertDatabaseMissing('journal_entries', ['id' => $draft->id]);
+        });
+    }
+
     public function test_close_racing_with_post_waits_then_post_sees_closed_period(): void
     {
         $this->raceFixture(function (User $owner, ChartAccount $account, $period): void {

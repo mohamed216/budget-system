@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Accounting\Actions\CreateChartAccount;
+use App\Accounting\Actions\CloseAccountingPeriod;
+use App\Accounting\Actions\CreateAccountingPeriod;
 use App\Accounting\Actions\DeleteChartAccount;
 use App\Accounting\Actions\DeleteJournalDraft;
 use App\Accounting\Actions\SaveJournalDraft;
@@ -250,6 +252,60 @@ class AccountingActionTest extends TestCase
         (new DeleteJournalDraft)->execute($this->owner, $journal->id);
         $this->assertDatabaseMissing('journal_entries', ['id' => $journal->id]);
         $this->assertDatabaseMissing('journal_lines', ['journal_entry_id' => $journal->id]);
+    }
+
+    public function test_delete_draft_locks_owner_then_header_then_lines_without_period_guard(): void
+    {
+        $journal = $this->draft([$this->line($this->account())]);
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        try {
+            (new DeleteJournalDraft)->execute($this->owner, $journal->id);
+            $locks = array_values(array_filter(DB::getQueryLog(), fn ($query) => str_contains(strtolower($query['query']), 'for update')));
+            $this->assertCount(3, $locks);
+            $this->assertStringContainsString('users', $locks[0]['query']);
+            $this->assertSame([$this->owner->id], $locks[0]['bindings']);
+            $this->assertStringContainsString('journal_entries', $locks[1]['query']);
+            $this->assertSame([$this->owner->id, $journal->id], $locks[1]['bindings']);
+            $this->assertStringContainsString('journal_lines', $locks[2]['query']);
+        } finally {
+            DB::disableQueryLog();
+            DB::flushQueryLog();
+        }
+        $this->assertDatabaseMissing('journal_entries', ['id' => $journal->id]);
+    }
+
+    public function test_delete_draft_remains_allowed_after_accounting_period_closes(): void
+    {
+        $journal = $this->draft([$this->line($this->account())]);
+        $period = (new CreateAccountingPeriod)->execute($this->owner, '2026-10-01', '2026-10-31');
+        (new CloseAccountingPeriod)->execute($this->owner, $period->id);
+
+        (new DeleteJournalDraft)->execute($this->owner, $journal->id);
+        $this->assertDatabaseMissing('journal_entries', ['id' => $journal->id]);
+        $this->assertDatabaseMissing('journal_lines', ['journal_entry_id' => $journal->id]);
+        $this->assertTrue($period->fresh()->isClosed());
+    }
+
+    public function test_delete_draft_remains_allowed_inside_permanently_closed_fiscal_year(): void
+    {
+        $journal = $this->draft([$this->line($this->account())]);
+        $retained = (new CreateChartAccount)->execute($this->owner, '3000', 'Retained earnings', 'equity');
+        DB::table('fiscal_year_closes')->insert([
+            'user_id' => $this->owner->id, 'start_date' => '2026-10-01', 'end_date' => '2026-10-31',
+            'currency' => config('accounting.currency'), 'retained_earnings_account_id' => $retained->id,
+            'closed_at' => now(),
+        ]);
+
+        (new DeleteJournalDraft)->execute($this->owner, $journal->id);
+        $this->assertDatabaseMissing('journal_entries', ['id' => $journal->id]);
+        $this->assertDatabaseMissing('journal_lines', ['journal_entry_id' => $journal->id]);
+        $this->assertDatabaseCount('fiscal_year_closes', 1);
+    }
+
+    public function test_delete_draft_keeps_missing_journal_hidden(): void
+    {
+        $this->rejects(fn () => (new DeleteJournalDraft)->execute($this->owner, 999999999), ModelNotFoundException::class);
     }
 
     public function test_failed_line_creation_rolls_back_header_lines_and_update_version(): void

@@ -2,6 +2,7 @@
 
 namespace App\Accounting\Actions;
 
+use App\Accounting\AccountingPeriodLocks;
 use App\Accounting\Exceptions\AccountingConflict;
 use App\Models\JournalEntry;
 use App\Models\User;
@@ -12,6 +13,7 @@ final class DeleteJournalDraft
     public function execute(User $actor, int $journalId): void
     {
         DB::transaction(function () use ($actor, $journalId) {
+            AccountingPeriodLocks::owner($actor);
             $journal = JournalEntry::ownedBy($actor)->whereKey($journalId)->lockForUpdate()->firstOrFail();
             if (! $journal->isDraft()) {
                 throw new AccountingConflict('Posted journal cannot be deleted.');
