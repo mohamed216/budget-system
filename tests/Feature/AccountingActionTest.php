@@ -382,6 +382,28 @@ class AccountingActionTest extends TestCase
         }
     }
 
+    public function test_chart_creation_locks_owner_before_ordered_owned_hierarchy_rows(): void
+    {
+        $parent = $this->account();
+        $this->account('9000', actor: $this->other);
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        try {
+            $child = $this->account('1001', $parent->id);
+            $locks = array_values(array_filter(DB::getQueryLog(), fn ($query) => str_contains($query['query'], 'for update')));
+            $this->assertCount(2, $locks);
+            $this->assertStringContainsString('users', $locks[0]['query']);
+            $this->assertSame([$this->owner->id], $locks[0]['bindings']);
+            $this->assertStringContainsString('chart_of_accounts', $locks[1]['query']);
+            $this->assertStringContainsString('order by `id` asc', $locks[1]['query']);
+            $this->assertSame([$this->owner->id], $locks[1]['bindings']);
+            $this->assertSame($parent->id, $child->parent_id);
+        } finally {
+            DB::disableQueryLog();
+            DB::flushQueryLog();
+        }
+    }
+
     public function test_chart_deletion_checks_references_without_locking_journal_lines(): void
     {
         $referenced = $this->account();

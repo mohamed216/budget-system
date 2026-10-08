@@ -2,6 +2,7 @@
 
 namespace App\Accounting\Actions;
 
+use App\Accounting\AccountingPeriodLocks;
 use App\Accounting\Exceptions\AccountingConflict;
 use App\Models\ChartAccount;
 use App\Models\User;
@@ -13,7 +14,7 @@ final class ChartHierarchy
     public static function lock(User $actor): Collection
     {
         // Serialize hierarchy writers, including insertion into an empty chart.
-        User::query()->whereKey($actor->getKey())->lockForUpdate()->firstOrFail();
+        AccountingPeriodLocks::owner($actor);
 
         return ChartAccount::ownedBy($actor)->orderBy('id')->lockForUpdate()->get();
     }
