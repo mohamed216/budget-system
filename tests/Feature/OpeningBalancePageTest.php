@@ -6,10 +6,14 @@ use App\Accounting\Actions\CloseAccountingPeriod;
 use App\Accounting\Actions\CreateAccountingPeriod;
 use App\Accounting\Actions\CreateChartAccount;
 use App\Accounting\Actions\CreateOpeningBalanceDraft;
+use App\Http\Controllers\Accounting\Pages\OpeningBalancePageController;
 use App\Models\OpeningBalanceBatch;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
+use PDOException;
 use Tests\Concerns\RefreshFinancialDatabase;
 use Tests\TestCase;
 
@@ -73,6 +77,41 @@ class OpeningBalancePageTest extends TestCase
             $this->assertContains('auth', $route->gatherMiddleware());
             $this->assertContains('web', $route->gatherMiddleware());
         }
+    }
+
+    public function test_page_route_names_methods_and_uris_are_stable(): void
+    {
+        $expected = [
+            'index' => [['GET', 'HEAD'], 'accounting/pages/opening-balances'],
+            'store' => [['POST'], 'accounting/pages/opening-balances'],
+            'show' => [['GET', 'HEAD'], 'accounting/pages/opening-balances/{openingBalance}'],
+            'update' => [['PUT'], 'accounting/pages/opening-balances/{openingBalance}'],
+            'destroy' => [['DELETE'], 'accounting/pages/opening-balances/{openingBalance}'],
+            'post' => [['POST'], 'accounting/pages/opening-balances/{openingBalance}/post'],
+        ];
+        $routes = collect(Route::getRoutes())
+            ->filter(fn ($route) => str_starts_with($route->getName() ?? '', 'accounting-pages.opening-balances.'));
+        $this->assertCount(count($expected), $routes);
+        foreach ($expected as $suffix => [$methods, $uri]) {
+            $route = Route::getRoutes()->getByName('accounting-pages.opening-balances.'.$suffix);
+            $this->assertNotNull($route);
+            $this->assertSame($methods, $route->methods());
+            $this->assertSame($uri, $route->uri());
+            $this->assertSame(OpeningBalancePageController::class, $route->getControllerClass());
+            $this->assertContains('auth', $route->gatherMiddleware());
+            $this->assertContains('web', $route->gatherMiddleware());
+        }
+    }
+
+    public function test_create_selector_lists_only_owned_active_accounts(): void
+    {
+        $inactive = (new CreateChartAccount)->execute($this->owner, '1100', 'غير نشط', 'asset');
+        $inactive->update(['is_active' => false]);
+        (new CreateChartAccount)->execute($this->other, '1200', 'حساب سري', 'asset');
+
+        $this->actingAs($this->owner)->get(route('accounting-pages.opening-balances.index'))
+            ->assertOk()->assertSee('النقدية')->assertSee('رأس المال')
+            ->assertDontSee('غير نشط')->assertDontSee('حساب سري');
     }
 
     public function test_index_navigation_and_owner_only_listing_render(): void
@@ -164,6 +203,67 @@ class OpeningBalancePageTest extends TestCase
         $this->from($index)->post(route('accounting-pages.opening-balances.store'), $bad)
             ->assertSessionHasErrors('lines.0.debit');
         $this->get($index)->assertSee('أدخل مبلغاً عشرياً نصياً صحيحاً')->assertDontSee('SQLSTATE');
+        $this->assertDatabaseCount('opening_balance_batches', 0);
+    }
+
+    public function test_update_validation_preserves_exact_old_input_and_batch_data(): void
+    {
+        $batch = $this->draft();
+        $show = route('accounting-pages.opening-balances.show', $batch->id);
+        $bad = $this->payload();
+        $bad['lines'][0]['debit'] = ' 100.00 ';
+        $this->actingAs($this->owner)->from($show)
+            ->put(route('accounting-pages.opening-balances.update', $batch->id), $bad)
+            ->assertRedirect($show)->assertSessionHasErrors('lines.0.debit');
+        $this->get($show)->assertOk()->assertSee('أدخل مبلغاً عشرياً نصياً صحيحاً')
+            ->assertSee('value=" 100.00 "', false)->assertDontSee('SQLSTATE');
+        $this->assertSame('100.00', $batch->fresh()->lines->first()->debit);
+    }
+
+    public function test_stranded_draft_page_deletion_remains_allowed_in_closed_accounting_period(): void
+    {
+        $batch = $this->draft();
+        $period = (new CreateAccountingPeriod)->execute($this->owner, '2026-01-15', '2026-01-15');
+        (new CloseAccountingPeriod)->execute($this->owner, $period->id);
+
+        $this->actingAs($this->owner)->from(route('accounting-pages.opening-balances.show', $batch->id))
+            ->delete(route('accounting-pages.opening-balances.destroy', $batch->id))
+            ->assertRedirect(route('accounting-pages.opening-balances.index'))
+            ->assertSessionHas('success', 'تم حذف مسودة الأرصدة الافتتاحية.');
+        $this->assertDatabaseMissing('opening_balance_batches', ['id' => $batch->id]);
+    }
+
+    public function test_stranded_draft_page_deletion_remains_allowed_in_fiscal_year_close(): void
+    {
+        $batch = $this->draft();
+        DB::table('fiscal_year_closes')->insert([
+            'user_id' => $this->owner->id, 'start_date' => '2026-01-01', 'end_date' => '2026-12-31',
+            'currency' => config('accounting.currency'), 'retained_earnings_account_id' => $this->equityId,
+            'closed_at' => now(),
+        ]);
+
+        $this->actingAs($this->owner)->from(route('accounting-pages.opening-balances.show', $batch->id))
+            ->delete(route('accounting-pages.opening-balances.destroy', $batch->id))
+            ->assertRedirect(route('accounting-pages.opening-balances.index'))
+            ->assertSessionHas('success', 'تم حذف مسودة الأرصدة الافتتاحية.');
+        $this->assertDatabaseMissing('opening_balance_batches', ['id' => $batch->id]);
+    }
+
+    public function test_page_unexpected_database_error_remains_sanitized(): void
+    {
+        Event::listen('eloquent.creating: '.OpeningBalanceBatch::class, function (): void {
+            throw new QueryException('mysql_testing', 'select secret from opening_balance_batches', [],
+                new PDOException('SQLSTATE[HY000]: private database detail'));
+        });
+        try {
+            $response = $this->actingAs($this->owner)
+                ->post(route('accounting-pages.opening-balances.store'), $this->payload())
+                ->assertStatus(500)->assertSee('تعذر تحميل الصفحة المحاسبية.');
+            $response->assertDontSee('SQLSTATE')->assertDontSee('secret')
+                ->assertDontSee('opening_balance_batches')->assertDontSee('private database detail');
+        } finally {
+            Event::forget('eloquent.creating: '.OpeningBalanceBatch::class);
+        }
         $this->assertDatabaseCount('opening_balance_batches', 0);
     }
 
