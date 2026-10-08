@@ -120,7 +120,7 @@
                         @foreach($budgets as $budget)
                             <tr class="transition hover:bg-slate-50">
                                 <th scope="row" class="px-4 py-4 font-medium text-slate-900 sm:px-6">{{ $budget->category->name }}</th>
-                                <td class="whitespace-nowrap px-4 py-4 font-semibold tabular-nums text-slate-900 sm:px-6"><span dir="ltr">{{ number_format($budget->amount, 2) }}</span></td>
+                                <td class="whitespace-nowrap px-4 py-4 font-semibold tabular-nums text-slate-900 sm:px-6"><span dir="ltr">{{ \App\Support\MoneyDisplay::format($budget->amount) }}</span></td>
                                 <td class="whitespace-nowrap px-4 py-4 text-slate-600 sm:px-6">{{ $months[$budget->month] ?? $budget->month }}</td>
                                 <td class="px-4 py-4 tabular-nums text-slate-600 sm:px-6">{{ $budget->year }}</td>
                                 <td class="px-4 py-4 text-left sm:px-6">

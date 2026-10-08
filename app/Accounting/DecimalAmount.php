@@ -15,6 +15,17 @@ final readonly class DecimalAmount
     /** Parse one DECIMAL(15,2) amount. Aggregate results may exceed that range. */
     public static function fromString(mixed $value): self
     {
+        $amount = self::fromAggregateString($value);
+        if (self::compareDigits($amount->minorUnits, self::MAX_MINOR_UNITS) > 0) {
+            throw new InvalidArgumentException('Amount exceeds DECIMAL(15,2) maximum 9999999999999.99.');
+        }
+
+        return $amount;
+    }
+
+    /** Parse an exact nonnegative DECIMAL aggregate without the single-row storage limit. */
+    public static function fromAggregateString(mixed $value): self
+    {
         if (! is_string($value) || preg_match('/^[0-9]+(?:\.[0-9]{1,2})?$/D', $value) !== 1) {
             throw new InvalidArgumentException('Amount must be a non-negative ordinary decimal string with at most two decimal places.');
         }
@@ -22,10 +33,6 @@ final readonly class DecimalAmount
         $parts = explode('.', $value, 2);
         $minorUnits = ltrim($parts[0].str_pad($parts[1] ?? '', 2, '0'), '0');
         $minorUnits = $minorUnits === '' ? '0' : $minorUnits;
-        if (self::compareDigits($minorUnits, self::MAX_MINOR_UNITS) > 0) {
-            throw new InvalidArgumentException('Amount exceeds DECIMAL(15,2) maximum 9999999999999.99.');
-        }
-
         return new self($minorUnits);
     }
 

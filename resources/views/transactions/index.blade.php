@@ -131,7 +131,7 @@
                             </td>
                             <td role="cell" class="block px-4 py-3 lg:table-cell lg:px-6 lg:py-4">
                                 <span class="mb-1 block text-xs text-slate-500 lg:hidden">المبلغ</span>
-                                <span dir="ltr" @class(['inline-block whitespace-nowrap font-semibold tabular-nums', 'text-emerald-700' => $transaction->type === 'income', 'text-rose-700' => $transaction->type !== 'income'])>{{ $transaction->type === 'income' ? '+' : '-' }}{{ number_format($transaction->amount, 2) }}</span>
+                                <span dir="ltr" @class(['inline-block whitespace-nowrap font-semibold tabular-nums', 'text-emerald-700' => $transaction->type === 'income', 'text-rose-700' => $transaction->type !== 'income'])>{{ $transaction->type === 'income' ? '+' : '-' }}{{ \App\Support\MoneyDisplay::format($transaction->amount) }}</span>
                             </td>
                             <td role="cell" class="col-span-2 block min-w-0 break-words border-t border-slate-100 px-4 py-3 text-slate-700 lg:table-cell lg:max-w-xs lg:border-0 lg:px-6 lg:py-4">
                                 <span class="mb-1 block text-xs text-slate-500 lg:hidden">الوصف</span>

@@ -101,7 +101,7 @@
                             </td>
                             <td role="cell" class="block px-4 py-3 md:table-cell md:px-6 md:py-4">
                                 <span class="mb-1 block text-xs text-slate-500 md:hidden">الرصيد</span>
-                                <span dir="ltr" class="font-semibold tabular-nums text-slate-900">{{ number_format($account->balance, 2) }}</span>
+                                <span dir="ltr" class="font-semibold tabular-nums text-slate-900">{{ \App\Support\MoneyDisplay::format($account->balance) }}</span>
                             </td>
                             <td role="cell" class="block px-4 py-3 md:table-cell md:px-6 md:py-4">
                                 <span class="mb-1 block text-xs text-slate-500 md:hidden">العملة</span>

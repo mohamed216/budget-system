@@ -11,20 +11,31 @@
         <p class="mt-2 text-sm leading-6 text-slate-500">نظرة عامة على أرصدتك والدخل والمصروفات لجميع الفترات.</p>
     </div>
 
+    @if($corruptOwnerLink)
+        <div role="alert" class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
+            توجد مشكلة في بيانات الحسابات أو الفئات المرتبطة بمعاملاتك. لا يمكن عرض إجماليات مالية موثوقة.
+        </div>
+    @elseif($mixedCurrencies)
+        <div role="alert" class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
+            توجد عملات مختلفة في حساباتك. لا يمكن عرض إجماليات مالية مجمعة دون تحويل عملات.
+        </div>
+    @else
+    <p class="text-sm text-slate-600">العملة: <span dir="ltr">{{ $currency }}</span></p>
+
     <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <div class="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <dt class="text-sm font-medium text-slate-500">الرصيد الإجمالي</dt>
-            <dd dir="ltr" @class(['mt-3 break-words text-right text-3xl font-bold tabular-nums', 'text-indigo-700' => $totalBalance >= 0, 'text-rose-700' => $totalBalance < 0])>{{ number_format($totalBalance, 2) }}</dd>
+            <dd dir="ltr" @class(['mt-3 break-words text-right text-3xl font-bold tabular-nums', 'text-indigo-700' => ! $totalBalanceNegative, 'text-rose-700' => $totalBalanceNegative])>{{ \App\Support\MoneyDisplay::format($totalBalance) }}</dd>
             <p class="mt-3 text-xs leading-5 text-slate-500">مجموع أرصدة الحسابات</p>
         </div>
         <div class="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <dt class="text-sm font-medium text-slate-500">إجمالي الدخل</dt>
-            <dd dir="ltr" class="mt-3 break-words text-right text-3xl font-bold tabular-nums text-emerald-700">+{{ number_format($totalIncome, 2) }}</dd>
+            <dd dir="ltr" class="mt-3 break-words text-right text-3xl font-bold tabular-nums text-emerald-700">+{{ \App\Support\MoneyDisplay::format($totalIncome) }}</dd>
             <p class="mt-3 text-xs leading-5 text-slate-500">جميع معاملات الدخل المسجلة</p>
         </div>
         <div class="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <dt class="text-sm font-medium text-slate-500">إجمالي المصروفات</dt>
-            <dd dir="ltr" class="mt-3 break-words text-right text-3xl font-bold tabular-nums text-rose-700">-{{ number_format($totalExpense, 2) }}</dd>
+            <dd dir="ltr" class="mt-3 break-words text-right text-3xl font-bold tabular-nums text-rose-700">-{{ \App\Support\MoneyDisplay::format($totalExpense) }}</dd>
             <p class="mt-3 text-xs leading-5 text-slate-500">جميع معاملات المصروفات المسجلة</p>
         </div>
     </dl>
@@ -77,7 +88,7 @@
                                 </td>
                                 <td role="cell" class="block px-4 py-3 md:table-cell md:py-4">
                                     <span class="mb-1 block text-xs text-slate-500 md:hidden">المبلغ</span>
-                                    <span dir="ltr" @class(['inline-block whitespace-nowrap font-semibold tabular-nums', 'text-emerald-700' => $transaction->type === 'income', 'text-rose-700' => $transaction->type !== 'income'])>{{ $transaction->type === 'income' ? '+' : '-' }}{{ number_format($transaction->amount, 2) }}</span>
+                                    <span dir="ltr" @class(['inline-block whitespace-nowrap font-semibold tabular-nums', 'text-emerald-700' => $transaction->type === 'income', 'text-rose-700' => $transaction->type !== 'income'])>{{ $transaction->type === 'income' ? '+' : '-' }}{{ \App\Support\MoneyDisplay::format($transaction->amount) }}</span>
                                 </td>
                             </tr>
                         @endforeach
@@ -93,7 +104,7 @@
             </div>
             <dl class="p-5 sm:p-6">
                 <dt class="text-sm font-medium text-slate-500">صافي الدخل بعد المصروفات</dt>
-                <dd dir="ltr" @class(['mt-3 break-words text-right text-3xl font-bold tabular-nums', 'text-emerald-700' => $totalIncome - $totalExpense >= 0, 'text-rose-700' => $totalIncome - $totalExpense < 0])>{{ number_format($totalIncome - $totalExpense, 2) }}</dd>
+                <dd dir="ltr" @class(['mt-3 break-words text-right text-3xl font-bold tabular-nums', 'text-emerald-700' => ! $netIncomeNegative, 'text-rose-700' => $netIncomeNegative])>{{ \App\Support\MoneyDisplay::format($netIncome) }}</dd>
             </dl>
         </section>
     </div>
@@ -114,7 +125,7 @@
                             @foreach($categoryTotals as $categoryTotal)
                                 <div class="flex flex-wrap items-center justify-between gap-3 py-4">
                                     <dt class="text-sm font-medium text-slate-700">الفئة <span dir="ltr" class="inline-block">#{{ $categoryTotal->category_id }}</span></dt>
-                                    <dd dir="ltr" @class(['break-words text-sm font-semibold tabular-nums', 'text-emerald-700' => $type === 'income', 'text-rose-700' => $type === 'expense'])>{{ $type === 'income' ? '+' : '-' }}{{ number_format($categoryTotal->total, 2) }}</dd>
+                                    <dd dir="ltr" @class(['break-words text-sm font-semibold tabular-nums', 'text-emerald-700' => $type === 'income', 'text-rose-700' => $type === 'expense'])>{{ $type === 'income' ? '+' : '-' }}{{ \App\Support\MoneyDisplay::format($categoryTotal->total) }}</dd>
                                 </div>
                             @endforeach
                         </dl>
@@ -123,5 +134,6 @@
             @endforeach
         </div>
     </section>
+    @endif
 </div>
 @endsection
