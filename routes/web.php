@@ -4,6 +4,7 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Accounting\AccountingPeriodController;
 use App\Http\Controllers\Accounting\ChartAccountController;
 use App\Http\Controllers\Accounting\FiscalYearCloseController;
+use App\Http\Controllers\Accounting\Pages\FinancialStatementPageController;
 use App\Http\Controllers\Accounting\Pages\FiscalYearClosePageController;
 use App\Http\Controllers\Accounting\Pages\OpeningBalancePageController;
 use App\Http\Controllers\Accounting\GeneralLedgerController;
@@ -99,6 +100,6 @@ Route::middleware('auth')->prefix('accounting/pages')->name('accounting-pages.')
     Route::post('journals/{journal}/reverse', 'journalReverse')->whereNumber('journal')->name('journals.reverse');
     Route::get('general-ledger', 'ledger')->name('ledger');
     Route::get('trial-balance', 'trial')->name('trial');
-    Route::get('income-statement', 'incomeStatement')->name('income-statement');
-    Route::get('balance-sheet', 'balanceSheet')->name('balance-sheet');
+    Route::get('income-statement', [FinancialStatementPageController::class, 'incomeStatement'])->name('income-statement');
+    Route::get('balance-sheet', [FinancialStatementPageController::class, 'balanceSheet'])->name('balance-sheet');
 });

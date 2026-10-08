@@ -6,12 +6,17 @@ use App\Accounting\Actions\CreateChartAccount;
 use App\Accounting\Actions\PostJournalEntry;
 use App\Accounting\Actions\ReverseJournalEntry;
 use App\Accounting\Actions\SaveJournalDraft;
+use App\Accounting\Queries\IncomeStatementQuery;
+use App\Accounting\Queries\StatementOfFinancialPositionQuery;
+use App\Http\Controllers\Accounting\Pages\FinancialStatementPageController;
 use App\Models\ChartAccount;
 use App\Models\JournalEntry;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use PDOException;
 use Tests\Concerns\RefreshFinancialDatabase;
 use Tests\TestCase;
 
@@ -66,7 +71,9 @@ class FinancialStatementPageTest extends TestCase
             $this->assertNotNull($route);
             $this->assertSame('accounting/pages/'.$path, $route->uri());
             $this->assertSame(['GET', 'HEAD'], $route->methods());
+            $this->assertSame(FinancialStatementPageController::class, $route->getControllerClass());
             $this->assertContains('auth', $route->gatherMiddleware());
+            $this->assertContains('web', $route->gatherMiddleware());
             $this->get('/accounting/pages/'.$path)->assertRedirect(route('login'));
         }
     }
@@ -91,6 +98,43 @@ class FinancialStatementPageTest extends TestCase
             ->assertSee('فرق المعادلة')->assertSee(config('accounting.currency'))
             ->assertSee('name="as_of"', false)->assertDontSee('الأرباح المبقاة')
             ->assertSee(route('accounting-pages.income-statement'), false);
+    }
+
+    public function test_statement_views_receive_their_existing_data_keys_and_selected_dates(): void
+    {
+        $this->actingAs($this->owner);
+        $this->get($this->income('2026-01-01', '2026-01-31'))->assertOk()
+            ->assertViewIs('accounting.income-statement')
+            ->assertViewHasAll(['report', 'dates', 'conflict'])
+            ->assertViewHas('dates', ['date_from' => '2026-01-01', 'date_to' => '2026-01-31'])
+            ->assertViewHas('conflict', fn ($conflict) => $conflict === null)
+            ->assertViewHas('report', fn ($report) => is_array($report));
+        $this->get($this->position('2026-01-31'))->assertOk()
+            ->assertViewIs('accounting.balance-sheet')
+            ->assertViewHasAll(['report', 'asOf', 'conflict'])
+            ->assertViewHas('asOf', '2026-01-31')
+            ->assertViewHas('conflict', fn ($conflict) => $conflict === null)
+            ->assertViewHas('report', fn ($report) => is_array($report));
+    }
+
+    public function test_statement_pages_keep_unexpected_database_errors_sanitized(): void
+    {
+        foreach ([
+            [IncomeStatementQuery::class, $this->income('2026-01-01', '2026-01-31')],
+            [StatementOfFinancialPositionQuery::class, $this->position('2026-01-31')],
+        ] as [$queryClass, $url]) {
+            $this->app->bind($queryClass, fn () => throw new QueryException('mysql_testing',
+                'select secret from journal_entries', [], new PDOException('SQLSTATE[HY000]: private database detail')));
+            try {
+                $this->actingAs($this->owner)->get($url)->assertStatus(500)
+                    ->assertViewIs('accounting.error')
+                    ->assertSee('تعذر تحميل الصفحة المحاسبية.')
+                    ->assertDontSee('SQLSTATE')->assertDontSee('secret')
+                    ->assertDontSee('journal_entries')->assertDontSee('private database detail');
+            } finally {
+                $this->app->bind($queryClass, $queryClass);
+            }
+        }
     }
 
     public function test_income_page_uses_inclusive_dates_posted_only_owner_scope_exact_cents_and_loss(): void

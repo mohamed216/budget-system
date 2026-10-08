@@ -16,16 +16,12 @@ use App\Accounting\Actions\UpdateAccountingPeriod;
 use App\Accounting\Actions\UpdateChartAccount;
 use App\Accounting\Exceptions\AccountingConflict;
 use App\Accounting\Queries\GeneralLedgerQuery;
-use App\Accounting\Queries\IncomeStatementQuery;
-use App\Accounting\Queries\StatementOfFinancialPositionQuery;
 use App\Accounting\Queries\TrialBalanceQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Accounting\AccountingPeriodRequest;
 use App\Http\Requests\Accounting\ChartAccountRequest;
 use App\Http\Requests\Accounting\GeneralLedgerPageRequest;
-use App\Http\Requests\Accounting\IncomeStatementPageRequest;
 use App\Http\Requests\Accounting\JournalPageRequest;
-use App\Http\Requests\Accounting\StatementOfFinancialPositionPageRequest;
 use App\Http\Requests\Accounting\TrialBalanceRequest;
 use App\Models\AccountingPeriod;
 use App\Models\ChartAccount;
@@ -279,33 +275,5 @@ class AccountingPageController extends Controller
         }
 
         return view('accounting.trial', ['report' => $report, 'conflict' => null]);
-    }
-
-    public function incomeStatement(IncomeStatementPageRequest $request, IncomeStatementQuery $query)
-    {
-        Gate::authorize('viewAny', ChartAccount::class);
-        $dates = $request->validated();
-        try {
-            $report = $query->execute($request->user(), $dates['date_from'], $dates['date_to']);
-        } catch (AccountingConflict $exception) {
-            return response()->view('accounting.income-statement', ['report' => null, 'dates' => $dates,
-                'conflict' => 'تعذر عرض القائمة بسبب تعارض في بيانات القيود المرحلة. راجع العملات وتوازن القيود.'], 409);
-        }
-
-        return view('accounting.income-statement', ['report' => $report, 'dates' => $dates, 'conflict' => null]);
-    }
-
-    public function balanceSheet(StatementOfFinancialPositionPageRequest $request, StatementOfFinancialPositionQuery $query)
-    {
-        Gate::authorize('viewAny', ChartAccount::class);
-        $date = $request->validated()['as_of'];
-        try {
-            $report = $query->execute($request->user(), $date);
-        } catch (AccountingConflict $exception) {
-            return response()->view('accounting.balance-sheet', ['report' => null, 'asOf' => $date,
-                'conflict' => 'تعذر عرض القائمة بسبب تعارض في بيانات القيود المرحلة. راجع العملات وتوازن القيود.'], 409);
-        }
-
-        return view('accounting.balance-sheet', ['report' => $report, 'asOf' => $date, 'conflict' => null]);
     }
 }
