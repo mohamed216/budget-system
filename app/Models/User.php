@@ -53,6 +53,11 @@ class User extends Authenticatable
         return $this->hasMany(OpeningBalanceBatch::class);
     }
 
+    public function fiscalYearCloses(): HasMany
+    {
+        return $this->hasMany(FiscalYearClose::class);
+    }
+
     /**
      * The attributes that are mass assignable.
      *

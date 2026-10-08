@@ -239,7 +239,7 @@ class JournalPeriodGuardTest extends TestCase
         }
     }
 
-    public function test_reversal_lock_order_is_owner_period_header_then_lines(): void
+    public function test_reversal_lock_order_is_owner_period_fiscal_year_header_then_lines(): void
     {
         $owner = User::factory()->create();
         $account = $this->account($owner);
@@ -249,9 +249,13 @@ class JournalPeriodGuardTest extends TestCase
         try {
             (new ReverseJournalEntry)->execute($owner, $original->id);
             $locks = array_values(array_filter(DB::getQueryLog(), fn ($q) => str_contains(strtolower($q['query']), 'for update')));
+            $this->assertCount(7, $locks);
             $this->assertStringContainsString('users', $locks[0]['query']);
             $this->assertStringContainsString('accounting_periods', $locks[1]['query']);
-            $this->assertStringContainsString('journal_entries', $locks[2]['query']);
+            $this->assertStringContainsString('fiscal_year_closes', $locks[2]['query']);
+            $this->assertStringContainsString('fiscal_year_closes', $locks[3]['query']);
+            $this->assertStringContainsString('journal_entries', $locks[4]['query']);
+            $this->assertStringContainsString('journal_entries', $locks[5]['query']);
             $this->assertStringContainsString('journal_lines', $locks[count($locks) - 1]['query']);
         } finally {
             DB::disableQueryLog();

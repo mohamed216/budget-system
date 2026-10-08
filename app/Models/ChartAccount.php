@@ -36,4 +36,9 @@ class ChartAccount extends Model
     {
         return $this->hasMany(OpeningBalanceLine::class, 'chart_account_id');
     }
+
+    public function fiscalYearClosesAsRetainedEarnings(): HasMany
+    {
+        return $this->hasMany(FiscalYearClose::class, 'retained_earnings_account_id');
+    }
 }

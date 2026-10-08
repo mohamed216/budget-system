@@ -45,6 +45,11 @@ class JournalEntry extends Model
         return $this->hasOne(OpeningBalanceBatch::class);
     }
 
+    public function fiscalYearClose(): HasOne
+    {
+        return $this->hasOne(FiscalYearClose::class);
+    }
+
     public function isDraft(): bool
     {
         return $this->status === 'draft';

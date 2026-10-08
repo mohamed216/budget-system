@@ -41,7 +41,8 @@ class JournalEntryPolicy
     public function reverse(User $user, JournalEntry $record): bool
     {
         return $this->view($user, $record) && $record->isPosted()
-            && $record->reversal_of_id === null && ! $record->reversal()->exists();
+            && $record->reversal_of_id === null && ! $record->reversal()->exists()
+            && ! $record->fiscalYearClose()->exists();
     }
 
     public function restore(User $user, JournalEntry $record): bool

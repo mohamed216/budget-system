@@ -19,6 +19,9 @@ final class DeleteChartAccount
             if ($account->openingBalanceLines()->exists()) {
                 throw new AccountingConflict('Chart account with opening balance lines cannot be deleted.');
             }
+            if ($account->fiscalYearClosesAsRetainedEarnings()->exists()) {
+                throw new AccountingConflict('Retained earnings account referenced by a fiscal-year close cannot be deleted.');
+            }
             $account->delete();
         }, 3);
     }

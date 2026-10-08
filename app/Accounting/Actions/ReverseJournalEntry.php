@@ -8,6 +8,7 @@ use App\Accounting\Exceptions\AccountingConflict;
 use App\Accounting\PeriodGuard;
 use App\Models\JournalEntry;
 use App\Models\JournalLine;
+use App\Models\FiscalYearClose;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -22,6 +23,10 @@ final class ReverseJournalEntry
             JournalEntry::ownedBy($actor)->whereKey($journalEntryId)->firstOrFail();
             $reversalDate = now()->toDateString();
             (new PeriodGuard)->assertOpen($actor, $reversalDate);
+            // Lock the fiscal-year link before the journal header, preserving owner -> date guards -> fiscal close -> journal.
+            if (FiscalYearClose::ownedBy($actor)->where('journal_entry_id', $journalEntryId)->lockForUpdate()->first(['id']) !== null) {
+                throw new AccountingConflict('Fiscal-year closing journals cannot be reversed through the generic reversal action.');
+            }
             $original = JournalEntry::ownedBy($actor)->whereKey($journalEntryId)->lockForUpdate()->firstOrFail();
             if (! $original->isPosted() || $original->reversal_of_id !== null) {
                 throw new AccountingConflict('Only an original posted journal can be reversed.');

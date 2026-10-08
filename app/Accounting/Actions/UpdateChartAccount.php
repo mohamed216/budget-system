@@ -18,7 +18,8 @@ final class UpdateChartAccount
             $account = ChartHierarchy::owned($accounts, $accountId);
             ChartHierarchy::validateParent($accounts, $parentId, $accountId);
             // Keep reference checks non-locking to avoid reversing the draft line/account lock order.
-            $referenced = $account->journalLines()->exists() || $account->openingBalanceLines()->exists();
+            $referenced = $account->journalLines()->exists() || $account->openingBalanceLines()->exists()
+                || $account->fiscalYearClosesAsRetainedEarnings()->exists();
             if ($referenced && ($account->code !== $fields['code'] || $account->type !== $fields['type'])) {
                 throw new AccountingConflict('Referenced chart account code and type cannot change.');
             }

@@ -170,15 +170,16 @@ class PostJournalEntryTest extends TestCase
         try {
             (new PostJournalEntry)->execute($this->owner, $journal->id);
             $locks = array_values(array_filter(DB::getQueryLog(), fn ($q) => str_contains($q['query'], 'for update')));
-            $this->assertCount(5, $locks);
+            $this->assertCount(6, $locks);
             $this->assertStringContainsString('users', $locks[0]['query']);
             $this->assertStringContainsString('accounting_periods', $locks[1]['query']);
-            $this->assertStringContainsString('journal_entries', $locks[2]['query']);
-            $this->assertStringContainsString('journal_lines', $locks[3]['query']);
-            $this->assertStringContainsString('chart_of_accounts', $locks[4]['query']);
-            $this->assertStringContainsString('order by `id` asc', $locks[4]['query']);
-            $this->assertSame([$this->owner->id, $this->account->id, $second->id], $locks[4]['bindings']);
-            $this->assertNotContains($unrelated->id, array_slice($locks[4]['bindings'], 1));
+            $this->assertStringContainsString('fiscal_year_closes', $locks[2]['query']);
+            $this->assertStringContainsString('journal_entries', $locks[3]['query']);
+            $this->assertStringContainsString('journal_lines', $locks[4]['query']);
+            $this->assertStringContainsString('chart_of_accounts', $locks[5]['query']);
+            $this->assertStringContainsString('order by `id` asc', $locks[5]['query']);
+            $this->assertSame([$this->owner->id, $this->account->id, $second->id], $locks[5]['bindings']);
+            $this->assertNotContains($unrelated->id, array_slice($locks[5]['bindings'], 1));
         } finally {
             DB::disableQueryLog();
             DB::flushQueryLog();

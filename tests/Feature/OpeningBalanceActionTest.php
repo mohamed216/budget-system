@@ -326,7 +326,7 @@ class OpeningBalanceActionTest extends TestCase
         $this->assertDatabaseCount('journal_lines', 0);
     }
 
-    public function test_post_lock_order_is_owner_period_batch_lines_accounts_then_journal(): void
+    public function test_post_lock_order_is_owner_period_fiscal_year_batch_lines_accounts_then_journal(): void
     {
         $batch = $this->draft();
         DB::enableQueryLog();
@@ -334,12 +334,12 @@ class OpeningBalanceActionTest extends TestCase
         try {
             (new PostOpeningBalanceBatch)->execute($this->owner, $batch->id);
             $locks = array_values(array_filter(DB::getQueryLog(), fn ($query) => str_contains(strtolower($query['query']), 'for update')));
-            $this->assertCount(6, $locks);
-            foreach (['users', 'accounting_periods', 'opening_balance_batches', 'opening_balance_lines',
+            $this->assertCount(7, $locks);
+            foreach (['users', 'accounting_periods', 'fiscal_year_closes', 'opening_balance_batches', 'opening_balance_lines',
                 'chart_of_accounts', 'journal_entries'] as $index => $table) {
                 $this->assertStringContainsString($table, $locks[$index]['query']);
             }
-            $this->assertStringContainsString('order by `id` asc', $locks[4]['query']);
+            $this->assertStringContainsString('order by `id` asc', $locks[5]['query']);
         } finally {
             DB::disableQueryLog();
             DB::flushQueryLog();
