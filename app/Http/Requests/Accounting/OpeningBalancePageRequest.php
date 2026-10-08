@@ -2,8 +2,7 @@
 
 namespace App\Http\Requests\Accounting;
 
-use App\Accounting\DecimalAmount;
-use InvalidArgumentException;
+use App\Rules\DecimalAmountRule;
 
 class OpeningBalancePageRequest extends OpeningBalanceDraftRequest
 {
@@ -14,20 +13,9 @@ class OpeningBalancePageRequest extends OpeningBalanceDraftRequest
         }
     }
 
-    public function rules(): array
+    protected function moneyRule(): DecimalAmountRule
     {
-        $rules = parent::rules();
-        $money = function (string $attribute, mixed $value, \Closure $fail): void {
-            try {
-                DecimalAmount::fromString($value);
-            } catch (InvalidArgumentException) {
-                $fail('أدخل مبلغاً عشرياً نصياً صحيحاً بحد أقصى منزلتين عشريتين.');
-            }
-        };
-        $rules['lines.*.debit'] = ['bail', 'required', 'string', $money];
-        $rules['lines.*.credit'] = ['bail', 'required', 'string', $money];
-
-        return $rules;
+        return new DecimalAmountRule('أدخل مبلغاً عشرياً نصياً صحيحاً بحد أقصى منزلتين عشريتين.');
     }
 
     public function messages(): array

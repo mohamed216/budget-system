@@ -2,11 +2,10 @@
 
 namespace App\Http\Requests\Accounting;
 
-use App\Accounting\DecimalAmount;
 use App\Models\OpeningBalanceBatch;
+use App\Rules\DecimalAmountRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use InvalidArgumentException;
 
 class OpeningBalanceDraftRequest extends FormRequest
 {
@@ -25,13 +24,7 @@ class OpeningBalanceDraftRequest extends FormRequest
 
     public function rules(): array
     {
-        $money = function (string $attribute, mixed $value, \Closure $fail): void {
-            try {
-                DecimalAmount::fromString($value);
-            } catch (InvalidArgumentException) {
-                $fail('Amounts must be exact decimal strings within DECIMAL(15,2).');
-            }
-        };
+        $money = $this->moneyRule();
 
         return [
             'opening_date' => ['required', 'date_format:Y-m-d'],
@@ -45,5 +38,10 @@ class OpeningBalanceDraftRequest extends FormRequest
             'journal_entry_id' => ['missing'], 'posted_at' => ['missing'],
             'created_at' => ['missing'], 'updated_at' => ['missing'],
         ];
+    }
+
+    protected function moneyRule(): DecimalAmountRule
+    {
+        return new DecimalAmountRule('Amounts must be exact decimal strings within DECIMAL(15,2).');
     }
 }

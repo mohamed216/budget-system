@@ -2,10 +2,9 @@
 
 namespace App\Http\Requests\Accounting;
 
-use App\Accounting\DecimalAmount;
+use App\Rules\DecimalAmountRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use InvalidArgumentException;
 
 class JournalDraftRequest extends FormRequest
 {
@@ -16,13 +15,7 @@ class JournalDraftRequest extends FormRequest
 
     public function rules(): array
     {
-        $money = function (string $attribute, mixed $value, \Closure $fail): void {
-            try {
-                DecimalAmount::fromString($value);
-            } catch (InvalidArgumentException $exception) {
-                $fail($exception->getMessage());
-            }
-        };
+        $money = new DecimalAmountRule;
 
         return [
             'entry_date' => ['required', 'date_format:Y-m-d'],
