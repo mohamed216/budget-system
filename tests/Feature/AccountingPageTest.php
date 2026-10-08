@@ -8,6 +8,7 @@ use App\Accounting\Actions\SaveJournalDraft;
 use App\Accounting\Queries\GeneralLedgerQuery;
 use App\Accounting\Queries\TrialBalanceQuery;
 use App\Http\Controllers\Accounting\Pages\ChartAccountPageController;
+use App\Http\Controllers\Accounting\Pages\JournalPageController;
 use App\Http\Controllers\Accounting\Pages\LedgerReportPageController;
 use App\Models\ChartAccount;
 use App\Models\JournalEntry;
@@ -54,6 +55,65 @@ class AccountingPageTest extends TestCase
     private function draft(array $lines = [], ?User $user = null): JournalEntry
     {
         return (new SaveJournalDraft)->execute($user ?? $this->owner, '2026-10-06', config('accounting.currency'), $lines, 'UI reference', 'UI description');
+    }
+
+    public function test_journal_page_routes_preserve_their_contract_and_new_controller_target(): void
+    {
+        foreach ([
+            ['journals.index', 'GET', 'journals', 'journalIndex'],
+            ['journals.create', 'GET', 'journals/create', 'journalCreate'],
+            ['journals.edit', 'GET', 'journals/{journal}/edit', 'journalEdit'],
+            ['journals.show', 'GET', 'journals/{journal}', 'journalShow'],
+            ['journals.store', 'POST', 'journals', 'journalStore'],
+            ['journals.update', 'PUT', 'journals/{journal}', 'journalUpdate'],
+            ['journals.destroy', 'DELETE', 'journals/{journal}', 'journalDelete'],
+            ['journals.post', 'POST', 'journals/{journal}/post', 'journalPost'],
+            ['journals.reverse', 'POST', 'journals/{journal}/reverse', 'journalReverse'],
+        ] as [$name, $method, $path, $action]) {
+            $route = Route::getRoutes()->getByName('accounting-pages.'.$name);
+            $this->assertNotNull($route);
+            $this->assertSame('accounting/pages/'.$path, $route->uri());
+            $this->assertSame($method === 'GET' ? ['GET', 'HEAD'] : [$method], $route->methods());
+            $this->assertSame(JournalPageController::class, $route->getControllerClass());
+            $this->assertSame($action, $route->getActionMethod());
+            $this->assertContains('web', $route->gatherMiddleware());
+            $this->assertContains('auth', $route->gatherMiddleware());
+        }
+    }
+
+    public function test_journal_views_keep_owner_scoping_order_and_exact_data_keys(): void
+    {
+        $older = $this->draft();
+        $newer = $this->draft();
+        $this->draft(user: $this->foreign);
+        $this->actingAs($this->owner)->get(route('accounting-pages.journals.index'))
+            ->assertOk()->assertViewIs('accounting.journals')
+            ->assertViewHas('journals', fn ($journals) => $journals->pluck('id')->all() === [$newer->id, $older->id]);
+        $this->get(route('accounting-pages.journals.show', $older->id))
+            ->assertOk()->assertViewIs('accounting.journal')
+            ->assertViewHas('journal', fn ($journal) => $journal->id === $older->id)
+            ->assertViewHas('canReverse', false);
+    }
+
+    public function test_journal_draft_views_keep_owned_account_order_and_inactive_history(): void
+    {
+        $later = $this->account('2000');
+        $earlier = $this->account('1000');
+        $foreign = $this->account('SECRET', $this->foreign);
+        $draft = $this->draft($this->lines($earlier));
+        $earlier->update(['is_active' => false]);
+
+        $create = $this->actingAs($this->owner)->get(route('accounting-pages.journals.create'))
+            ->assertOk()->assertViewIs('accounting.draft')
+            ->assertViewHas('journal', null)
+            ->assertViewHas('accounts', fn ($accounts) => $accounts->pluck('id')->all() === [$earlier->id, $later->id])
+            ->assertDontSee('value="'.$foreign->id.'"', false);
+        $this->assertMatchesRegularExpression('/<option value="'.$earlier->id.'"[^>]*disabled/', $create->getContent());
+        $this->get(route('accounting-pages.journals.edit', $draft->id))
+            ->assertOk()->assertViewIs('accounting.draft')
+            ->assertViewHas('journal', fn ($journal) => $journal->id === $draft->id)
+            ->assertViewHas('accounts', fn ($accounts) => $accounts->pluck('id')->all() === [$earlier->id, $later->id])
+            ->assertSee('غير نشط')->assertSee('0.10');
     }
 
     public function test_chart_page_routes_keep_their_contract_and_new_controller_target(): void

@@ -15,7 +15,7 @@ use App\Models\JournalEntry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
-class AccountingPageController extends Controller
+class JournalPageController extends Controller
 {
     public function __construct(
         private readonly OwnedChartAccounts $accounts,

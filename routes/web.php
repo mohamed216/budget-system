@@ -70,7 +70,7 @@ Route::middleware('auth')->prefix('accounting')->name('accounting.')->group(func
     Route::get('balance-sheet', StatementOfFinancialPositionController::class)->name('balance-sheet');
 });
 
-Route::middleware('auth')->prefix('accounting/pages')->name('accounting-pages.')->controller(\App\Http\Controllers\Accounting\Pages\AccountingPageController::class)->group(function () {
+Route::middleware('auth')->prefix('accounting/pages')->name('accounting-pages.')->controller(\App\Http\Controllers\Accounting\Pages\JournalPageController::class)->group(function () {
     Route::get('fiscal-year-closes', [FiscalYearClosePageController::class, 'index'])->name('fiscal-year-closes.index');
     Route::get('fiscal-year-closes/create', [FiscalYearClosePageController::class, 'create'])->name('fiscal-year-closes.create');
     Route::post('fiscal-year-closes', [FiscalYearClosePageController::class, 'store'])->name('fiscal-year-closes.store');
