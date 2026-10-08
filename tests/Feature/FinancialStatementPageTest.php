@@ -169,6 +169,29 @@ class FinancialStatementPageTest extends TestCase
         $this->get($positionPage)->assertOk()->assertSee('value="2026-02-30"', false);
     }
 
+    public function test_report_page_defaults_apply_only_when_their_date_inputs_are_absent(): void
+    {
+        $this->travelTo(Carbon::parse('2026-03-15 12:00:00'));
+        try {
+            $this->actingAs($this->owner);
+            $incomePage = route('accounting-pages.income-statement');
+            $positionPage = route('accounting-pages.balance-sheet');
+            $this->get($incomePage)->assertOk()
+                ->assertSee('value="2026-03-01"', false)
+                ->assertSee('value="2026-03-15"', false);
+            $this->get($positionPage)->assertOk()->assertSee('value="2026-03-15"', false);
+
+            $this->from($incomePage)->get($incomePage.'?date_from=2026-02-01')
+                ->assertRedirect($incomePage)->assertSessionHasErrors('date_to');
+            $this->get($incomePage)->assertOk()->assertSee('value="2026-02-01"', false);
+            $this->from($positionPage)->get($positionPage.'?as_of=')
+                ->assertRedirect($positionPage)->assertSessionHasErrors('as_of');
+            $this->get($positionPage)->assertOk()->assertSee('name="as_of"', false);
+        } finally {
+            $this->travelBack();
+        }
+    }
+
     public function test_mixed_currency_conflict_is_safe_arabic_html(): void
     {
         $asset = $this->account('1000', 'asset');

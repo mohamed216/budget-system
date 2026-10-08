@@ -145,6 +145,20 @@ class FinancialStatementHttpTest extends TestCase
         $this->getJson($this->position('2026-02-30'))->assertUnprocessable()->assertJsonValidationErrors('as_of');
     }
 
+    public function test_report_get_dates_keep_existing_trimmed_query_input_contract(): void
+    {
+        $this->actingAs($this->owner);
+        $this->getJson($this->income(' 2026-01-01 ', '2026-01-31 '))->assertOk()
+            ->assertJsonPath('data.date_from', '2026-01-01')
+            ->assertJsonPath('data.date_to', '2026-01-31');
+        $this->getJson($this->position(' 2026-01-31 '))->assertOk()
+            ->assertJsonPath('data.as_of', '2026-01-31');
+        $this->getJson($this->income('2026-01-01', '2026-1-31'))
+            ->assertUnprocessable()->assertJsonValidationErrors('date_to');
+        $this->getJson($this->position('2026-1-31'))
+            ->assertUnprocessable()->assertJsonValidationErrors('as_of');
+    }
+
     public function test_empty_ledger_uses_configured_currency_and_historical_postings_use_actual_currency(): void
     {
         $configured = config('accounting.currency');

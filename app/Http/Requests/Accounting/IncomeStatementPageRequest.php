@@ -2,9 +2,7 @@
 
 namespace App\Http\Requests\Accounting;
 
-use Illuminate\Foundation\Http\FormRequest;
-
-class IncomeStatementPageRequest extends FormRequest
+class IncomeStatementPageRequest extends IncomeStatementRequest
 {
     protected function prepareForValidation(): void
     {
@@ -14,18 +12,5 @@ class IncomeStatementPageRequest extends FormRequest
                 'date_to' => today()->toDateString(),
             ]);
         }
-    }
-
-    public function authorize(): bool
-    {
-        return $this->user() !== null;
-    }
-
-    public function rules(): array
-    {
-        return [
-            'date_from' => ['required', 'date_format:Y-m-d'],
-            'date_to' => ['required', 'date_format:Y-m-d', 'after_or_equal:date_from'],
-        ];
     }
 }
