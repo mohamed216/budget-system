@@ -289,6 +289,29 @@ class AccountingHttpTest extends TestCase
         $this->post('/accounting/journals', [])->assertUnprocessable()->assertHeader('Content-Type', 'application/json');
     }
 
+    public function test_ledger_and_trial_mixed_currency_conflicts_remain_sanitized_json_409(): void
+    {
+        $account = $this->account();
+        $configured = config('accounting.currency');
+        try {
+            $first = $this->draft($this->owner, [$this->line($account), $this->line($account, '0', '1.2')]);
+            $this->actingAs($this->owner)->postJson('/accounting/journals/'.$first->id.'/post')->assertOk();
+            config(['accounting.currency' => $configured === 'SAR' ? 'USD' : 'SAR']);
+            $this->getJson('/accounting/general-ledger?chart_account_id='.$account->id)
+                ->assertOk()->assertJsonPath('data.currency', $configured);
+            $this->getJson('/accounting/trial-balance')->assertOk()->assertJsonPath('data.currency', $configured);
+            $second = $this->draft($this->owner, [$this->line($account), $this->line($account, '0', '1.2')]);
+            $this->postJson('/accounting/journals/'.$second->id.'/post')->assertOk();
+
+            foreach (['/accounting/general-ledger?chart_account_id='.$account->id, '/accounting/trial-balance'] as $uri) {
+                $this->getJson($uri)->assertConflict()->assertJsonStructure(['message'])
+                    ->assertDontSee('SQLSTATE')->assertDontSee('journal_entries');
+            }
+        } finally {
+            config(['accounting.currency' => $configured]);
+        }
+    }
+
     public function test_controllers_apply_discovered_policies(): void
     {
         $account = $this->account();

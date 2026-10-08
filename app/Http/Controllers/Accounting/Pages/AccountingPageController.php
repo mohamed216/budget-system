@@ -382,10 +382,15 @@ class AccountingPageController extends Controller
         if ($request->hasAny(['chart_account_id', 'date_from', 'date_to'])) {
             $d = $request->validated();
             $account = $this->chart($request, (string) $d['chart_account_id'], 'view');
-            $report = $query->execute($request->user(), $account->id, $d['date_from'] ?? null, $d['date_to'] ?? null);
+            try {
+                $report = $query->execute($request->user(), $account->id, $d['date_from'] ?? null, $d['date_to'] ?? null);
+            } catch (AccountingConflict $exception) {
+                return response()->view('accounting.ledger', ['accounts' => $this->accounts($request), 'report' => null,
+                    'conflict' => 'تعذر عرض الأستاذ بسبب اختلاف عملات القيود المرحلة أو عدم توازنها.'], 409);
+            }
         }
 
-        return view('accounting.ledger', ['accounts' => $this->accounts($request), 'report' => $report]);
+        return view('accounting.ledger', ['accounts' => $this->accounts($request), 'report' => $report, 'conflict' => null]);
     }
 
     public function trial(TrialBalanceRequest $request, TrialBalanceQuery $query)

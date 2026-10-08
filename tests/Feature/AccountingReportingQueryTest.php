@@ -226,6 +226,135 @@ class AccountingReportingQueryTest extends TestCase
         $this->assertSame('posted', $journal->fresh()->status);
     }
 
+    public function test_general_ledger_rejects_mixed_and_case_distinct_currencies_in_its_opening_and_period_scope(): void
+    {
+        $configured = config('accounting.currency');
+        try {
+            $this->transfer('2026-01-01', '0.01');
+            $this->assertSame($configured, (new GeneralLedgerQuery)->execute($this->owner, $this->asset->id)['currency']);
+
+            config(['accounting.currency' => $configured === 'SAR' ? 'USD' : 'SAR']);
+            $this->transfer('2026-02-01', '9999999999999.99');
+            $ledger = new GeneralLedgerQuery;
+            $this->assertSame($configured, $ledger->execute($this->owner, $this->asset->id, dateTo: '2026-01-01')['currency']);
+            try {
+                $ledger->execute($this->owner, $this->asset->id);
+                $this->fail('Mixed currencies must be rejected.');
+            } catch (AccountingConflict $exception) {
+                $this->assertStringContainsString('different currencies', $exception->getMessage());
+            }
+            try {
+                $ledger->execute($this->owner, $this->asset->id, '2026-02-01', '2026-02-01');
+                $this->fail('The opening balance must participate in the currency check.');
+            } catch (AccountingConflict $exception) {
+                $this->assertStringContainsString('different currencies', $exception->getMessage());
+            }
+
+            $foreignAsset = $this->account('1000', 'asset', $this->other);
+            $foreignLiability = $this->account('2000', 'liability', $this->other);
+            $this->journal('2026-01-01', [
+                $this->line($foreignAsset, '1.00', '0'), $this->line($foreignLiability, '0', '1.00'),
+            ], actor: $this->other);
+            $this->assertSame($configured, $ledger->execute($this->owner, $this->asset->id, dateTo: '2026-01-01')['currency']);
+        } finally {
+            config(['accounting.currency' => $configured]);
+        }
+    }
+
+    public function test_general_ledger_rejects_currency_codes_that_differ_only_by_case(): void
+    {
+        $this->transfer('2026-01-01', '0.01');
+        $draft = $this->transfer('2026-01-02', '0.01', post: false);
+        DB::table('journal_entries')->where('id', $draft->id)->update([
+            'currency' => strtolower(config('accounting.currency')), 'status' => 'posted', 'posted_at' => now(),
+        ]);
+
+        $this->expectException(AccountingConflict::class);
+        $this->expectExceptionMessage('different currencies');
+        (new GeneralLedgerQuery)->execute($this->owner, $this->asset->id);
+    }
+
+    public function test_general_ledger_currency_check_keeps_the_selected_account_scope(): void
+    {
+        $configured = config('accounting.currency');
+        try {
+            $this->transfer('2026-01-01', '0.01');
+            $otherAsset = $this->account('1100', 'asset');
+            config(['accounting.currency' => $configured === 'SAR' ? 'USD' : 'SAR']);
+            $this->journal('2026-01-02', [
+                $this->line($otherAsset, '1.00', '0'), $this->line($this->liability, '0', '1.00'),
+            ]);
+
+            $ledger = (new GeneralLedgerQuery)->execute($this->owner, $this->asset->id);
+            $this->assertSame($configured, $ledger['currency']);
+            $this->assertSame('0.01', $ledger['period']['closing_balance']);
+        } finally {
+            config(['accounting.currency' => $configured]);
+        }
+    }
+
+    public function test_trial_balance_rejects_mixed_and_case_distinct_currencies_but_is_owner_scoped(): void
+    {
+        $configured = config('accounting.currency');
+        try {
+            $this->transfer('2026-01-01', '0.01');
+            config(['accounting.currency' => $configured === 'SAR' ? 'USD' : 'SAR']);
+            $this->transfer('2026-02-01', '9999999999999.99');
+            $query = new TrialBalanceQuery;
+            $this->assertSame($configured, $query->execute($this->owner, '2026-01-01')['currency']);
+            $this->assertSame('0.01', $query->execute($this->owner, '2026-01-01')['totals']['total_debits']);
+            try {
+                $query->execute($this->owner, '2026-02-01');
+                $this->fail('Mixed currencies must be rejected.');
+            } catch (AccountingConflict $exception) {
+                $this->assertStringContainsString('different currencies', $exception->getMessage());
+            }
+
+            $foreignAsset = $this->account('1000', 'asset', $this->other);
+            $foreignLiability = $this->account('2000', 'liability', $this->other);
+            $this->journal('2026-01-01', [
+                $this->line($foreignAsset, '1.00', '0'), $this->line($foreignLiability, '0', '1.00'),
+            ], actor: $this->other);
+            $this->assertSame($configured, $query->execute($this->owner, '2026-01-01')['currency']);
+        } finally {
+            config(['accounting.currency' => $configured]);
+        }
+
+    }
+
+    public function test_trial_balance_rejects_currency_codes_that_differ_only_by_case(): void
+    {
+        $this->transfer('2026-01-01', '0.01');
+        $draft = $this->transfer('2026-01-02', '0.01', post: false);
+        DB::table('journal_entries')->where('id', $draft->id)->update([
+            'currency' => strtolower(config('accounting.currency')), 'status' => 'posted', 'posted_at' => now(),
+        ]);
+        $this->expectException(AccountingConflict::class);
+        $this->expectExceptionMessage('different currencies');
+        (new TrialBalanceQuery)->execute($this->owner, '2026-01-02');
+    }
+
+    public function test_trial_balance_rejects_individually_unbalanced_journals_even_when_their_errors_offset(): void
+    {
+        $this->transfer('2026-01-01', '0.01');
+        $debitOnly = $this->journal('2026-01-02', [$this->line($this->asset, '1.00', '0')], post: false);
+        $creditOnly = $this->journal('2026-01-02', [$this->line($this->liability, '0', '1.00')], post: false);
+        DB::table('journal_entries')->whereIn('id', [$debitOnly->id, $creditOnly->id])
+            ->update(['status' => 'posted', 'posted_at' => now()]);
+        $query = new TrialBalanceQuery;
+        $this->assertSame('0.01', $query->execute($this->owner, '2026-01-01')['totals']['total_debits']);
+        $totals = DB::table('journal_lines')->where('user_id', $this->owner->id)
+            ->selectRaw('SUM(debit) AS debit_total, SUM(credit) AS credit_total')->first();
+        $this->assertSame('1.01', $totals->debit_total);
+        $this->assertSame($totals->debit_total, $totals->credit_total);
+        try {
+            $query->execute($this->owner, '2026-01-02');
+            $this->fail('Offsetting corrupt journals must be rejected individually.');
+        } catch (AccountingConflict $exception) {
+            $this->assertStringContainsString('out of balance', $exception->getMessage());
+        }
+    }
+
     public function test_reports_use_one_nonlocking_statement_each_without_n_plus_one_reads(): void
     {
         $this->transfer('2026-01-01', '1');

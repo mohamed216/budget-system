@@ -11,8 +11,9 @@
         <label class="text-sm">إلى تاريخ<input type="date" name="date_to" value="{{ old('date_to', request('date_to')) }}" class="mt-1 block w-full rounded-lg border border-slate-300 p-2.5">@error('date_to')<span class="text-red-700">{{ $message }}</span>@enderror</label>
         <button class="self-end rounded-xl bg-indigo-600 px-5 py-2.5 text-white">عرض الأستاذ</button>
     </form>
+    @if($conflict)<div role="alert" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800">{{ $conflict }}</div>@endif
     @if($report)
-        <h3 class="font-bold">{{ $report['account']['code'] }} — {{ $report['account']['name'] }} <span class="text-sm font-normal text-slate-500">{{ $types[$report['account']['type']] }} / {{ config('accounting.currency') }}</span></h3>
+        <h3 class="font-bold">{{ $report['account']['code'] }} — {{ $report['account']['name'] }} <span class="text-sm font-normal text-slate-500">{{ $types[$report['account']['type']] }} / {{ $report['currency'] }}</span></h3>
         <p class="text-sm text-slate-500">الرصيد الموقّع = المدين − الدائن. يشمل التقرير القيود المرحلة فقط.</p>
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             @foreach(['opening_balance' => 'الرصيد الافتتاحي', 'total_debit' => 'إجمالي المدين', 'total_credit' => 'إجمالي الدائن', 'net_movement' => 'صافي الحركة', 'closing_balance' => 'الرصيد الختامي'] as $key => $label)
@@ -23,6 +24,6 @@
         <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white"><table class="w-full min-w-[900px] text-right text-sm"><thead class="bg-slate-50"><tr>@foreach(['التاريخ', 'مرجع القيد', 'وصف القيد', 'وصف السطر', 'مدين', 'دائن', 'الرصيد الجاري'] as $label)<th class="p-4">{{ $label }}</th>@endforeach</tr></thead>
             <tbody class="divide-y divide-slate-100">@forelse($report['movements'] as $movement)<tr><td class="p-4" dir="ltr">{{ $movement['entry_date'] }}</td><td class="p-4"><a class="text-indigo-700" href="{{ route('accounting-pages.journals.show', $movement['journal_entry_id']) }}">{{ $movement['reference'] ?? '#'.$movement['journal_entry_id'] }}</a></td><td class="max-w-xs break-words p-4">{{ $movement['journal_description'] ?? '—' }}</td><td class="max-w-xs break-words p-4">{{ $movement['line_description'] ?? '—' }}</td>@foreach(['debit', 'credit', 'running_balance'] as $key)<td dir="ltr" class="p-4 font-mono {{ str_starts_with($movement[$key], '-') ? 'text-red-700' : 'text-slate-800' }}">{{ $movement[$key] }}</td>@endforeach</tr>@empty<tr><td colspan="7" class="p-10 text-center text-slate-500">لا توجد حركات مرحلة خلال الفترة.</td></tr>@endforelse</tbody>
         </table></div>
-    @else <p class="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-500">{{ $accounts->isEmpty() ? 'لا توجد حسابات محاسبية لعرض الأستاذ.' : 'اختر حساباً لعرض حركاته المرحلة.' }}</p> @endif
+    @elseif(! $conflict) <p class="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-500">{{ $accounts->isEmpty() ? 'لا توجد حسابات محاسبية لعرض الأستاذ.' : 'اختر حساباً لعرض حركاته المرحلة.' }}</p> @endif
 </div>
 @endsection

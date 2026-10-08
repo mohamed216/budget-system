@@ -18,6 +18,9 @@ final class FinancialStatementSnapshot
             ? 'AND NOT EXISTS (SELECT 1 FROM fiscal_year_closes fyc WHERE fyc.user_id = je.user_id AND fyc.journal_entry_id = je.id)'
             : '';
         $bindings = [$owner->getKey(), ...($dateFrom === null ? [] : [$dateFrom]), $dateTo, $owner->getKey(), $owner->getKey()];
+        $currencyCount = PostedLedgerIntegrity::currencyCountExpression('currency');
+        $journalDelta = PostedLedgerIntegrity::journalDeltaExpression('jl');
+        $unbalancedCount = PostedLedgerIntegrity::unbalancedCountExpression('delta');
 
         $rows = DB::select(<<<SQL
 WITH posted_scope AS (
@@ -26,19 +29,18 @@ WITH posted_scope AS (
     WHERE je.user_id = ? AND je.status = 'posted' {$datePredicate} {$closingPredicate}
 ),
 currency_summary AS (
-    SELECT COUNT(DISTINCT CAST(currency AS BINARY)) AS currency_count, MIN(currency) AS actual_currency
+    SELECT {$currencyCount} AS currency_count, MIN(currency) AS actual_currency
     FROM posted_scope
 ),
 journal_deltas AS (
-    SELECT pe.id, COALESCE(SUM(jl.debit), 0.00) - COALESCE(SUM(jl.credit), 0.00) AS delta
+    SELECT pe.id, {$journalDelta} AS delta
     FROM posted_scope pe
     LEFT JOIN journal_lines jl ON jl.journal_entry_id = pe.id AND jl.user_id = pe.user_id
     GROUP BY pe.id
 ),
 journal_integrity AS (
-    SELECT COUNT(*) AS unbalanced_journal_count
+    SELECT {$unbalancedCount} AS unbalanced_journal_count
     FROM journal_deltas
-    WHERE delta <> 0.00
 ),
 line_totals AS (
     SELECT jl.chart_account_id, jl.user_id, SUM(jl.debit) AS debit_total, SUM(jl.credit) AS credit_total

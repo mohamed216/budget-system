@@ -408,8 +408,16 @@ class FinancialStatementQueryTest extends TestCase
         DB::table('journal_entries')->whereIn('id', [$debitOnly->id, $creditOnly->id])
             ->update(['status' => 'posted', 'posted_at' => now()]);
 
-        $trial = (new TrialBalanceQuery)->execute($this->owner, '2026-01-02');
-        $this->assertSame($trial['totals']['total_debits'], $trial['totals']['total_credits']);
+        $ledgerTotals = DB::table('journal_lines')->where('user_id', $this->owner->id)
+            ->selectRaw('SUM(debit) AS debits, SUM(credit) AS credits')->first();
+        $this->assertSame('3.00', $ledgerTotals->debits);
+        $this->assertSame($ledgerTotals->debits, $ledgerTotals->credits);
+        try {
+            (new TrialBalanceQuery)->execute($this->owner, '2026-01-02');
+            $this->fail('Trial Balance must reject offsetting individually unbalanced journals.');
+        } catch (AccountingConflict $exception) {
+            $this->assertStringContainsString('out of balance', $exception->getMessage());
+        }
         foreach ([
             fn () => (new IncomeStatementQuery)->execute($this->owner, '2026-01-01', '2026-01-02'),
             fn () => (new StatementOfFinancialPositionQuery)->execute($this->owner, '2026-01-02'),

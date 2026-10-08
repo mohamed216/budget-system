@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Validator;
 
 final class GeneralLedgerQuery
 {
+    public function __construct(private readonly PostedLedgerIntegrity $integrity = new PostedLedgerIntegrity) {}
+
     public function execute(User $actor, int $chartAccountId, ?string $dateFrom = null, ?string $dateTo = null): array
     {
         Validator::make(['date_from' => $dateFrom, 'date_to' => $dateTo], [
@@ -46,7 +48,18 @@ final class GeneralLedgerQuery
 
         // One non-locking statement gives account metadata, opening, totals and movements one snapshot.
         // MySQL DECIMAL aggregates/window arithmetic retain exact signed two-decimal strings.
+        $integrityScope = $this->integrity->postedScope($actor);
+        if ($dateTo !== null) {
+            $integrityScope->where('integrity_entries.entry_date', '<=', $dateTo);
+        }
+        $integrityScope->whereExists(function ($query) use ($chartAccountId): void {
+            $query->selectRaw('1')->from('journal_lines as integrity_scope_lines')
+                ->whereColumn('integrity_scope_lines.journal_entry_id', 'integrity_entries.id')
+                ->whereColumn('integrity_scope_lines.user_id', 'integrity_entries.user_id')
+                ->where('integrity_scope_lines.chart_account_id', $chartAccountId);
+        });
         $rows = ChartAccount::ownedBy($actor)->whereKey($chartAccountId)
+            ->crossJoinSub($this->integrity->summary($integrityScope), 'integrity')
             ->leftJoinSub($opening, 'opening', 'opening.chart_account_id', '=', 'chart_of_accounts.id')
             ->leftJoinSub($totals, 'totals', 'totals.chart_account_id', '=', 'chart_of_accounts.id')
             ->leftJoinSub($movements, 'movement', 'movement.chart_account_id', '=', 'chart_of_accounts.id')
@@ -58,12 +71,16 @@ final class GeneralLedgerQuery
                 COALESCE(totals.credit_total, 0.00) AS total_credit,
                 COALESCE(totals.debit_total, 0.00) - COALESCE(totals.credit_total, 0.00) AS net_movement,
                 COALESCE(opening.signed_net, 0.00) + COALESCE(totals.debit_total, 0.00) - COALESCE(totals.credit_total, 0.00) AS closing_balance,
-                COALESCE(opening.signed_net, 0.00) + movement.running_net AS running_balance')
+                COALESCE(opening.signed_net, 0.00) + movement.running_net AS running_balance,
+                integrity.currency_count, integrity.actual_currency, integrity.unbalanced_journal_count')
             ->orderBy('movement.entry_date')->orderBy('movement.journal_entry_id')->orderBy('movement.line_number')->orderBy('movement.journal_line_id')
             ->toBase()->get();
         $account = $rows->first() ?? throw (new ModelNotFoundException)->setModel(ChartAccount::class, [$chartAccountId]);
+        $currency = $this->integrity->currency($account);
+        $this->integrity->assertBalanced($account);
 
         return [
+            'currency' => $currency,
             'account' => ['id' => $account->id, 'code' => $account->code, 'name' => $account->name, 'type' => $account->type],
             'opening_balance' => $account->opening_balance,
             'period' => ['total_debit' => $account->total_debit, 'total_credit' => $account->total_credit,

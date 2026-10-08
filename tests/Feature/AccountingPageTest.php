@@ -192,6 +192,29 @@ class AccountingPageTest extends TestCase
         $this->get(route('accounting-pages.trial'))->assertStatus(409)->assertSee('out of balance')->assertDontSee('SQLSTATE');
     }
 
+    public function test_ledger_and_trial_pages_reject_mixed_currency_and_ledger_labels_actual_historical_currency(): void
+    {
+        $account = $this->account();
+        $configured = config('accounting.currency');
+        try {
+            $first = $this->draft($this->lines($account));
+            (new PostJournalEntry)->execute($this->owner, $first->id);
+            config(['accounting.currency' => $configured === 'SAR' ? 'USD' : 'SAR']);
+            $this->actingAs($this->owner)->get(route('accounting-pages.ledger', ['chart_account_id' => $account->id]))
+                ->assertOk()->assertSee(' / '.$configured);
+            $this->get(route('accounting-pages.trial'))->assertOk()->assertSee($configured.' — القيود المرحلة');
+
+            $second = $this->draft($this->lines($account));
+            (new PostJournalEntry)->execute($this->owner, $second->id);
+            $this->get(route('accounting-pages.ledger', ['chart_account_id' => $account->id]))
+                ->assertStatus(409)->assertSee('اختلاف عملات القيود المرحلة')->assertDontSee('SQLSTATE');
+            $this->get(route('accounting-pages.trial'))
+                ->assertStatus(409)->assertSee('تعارض في بيانات القيود المرحلة')->assertDontSee('SQLSTATE');
+        } finally {
+            config(['accounting.currency' => $configured]);
+        }
+    }
+
     public function test_forms_never_emit_protected_accounting_fields_and_money_stays_text(): void
     {
         $this->account();

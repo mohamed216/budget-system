@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Validator;
 
 final class TrialBalanceQuery
 {
+    public function __construct(private readonly PostedLedgerIntegrity $integrity = new PostedLedgerIntegrity) {}
+
     public function execute(User $actor, ?string $asOf = null): array
     {
         Validator::make(['as_of' => $asOf], ['as_of' => ['nullable', 'date_format:Y-m-d']])->validate();
@@ -29,15 +31,27 @@ final class TrialBalanceQuery
         $net = "({$debit} - {$credit})";
         $debitBalance = "GREATEST({$net}, 0.00)";
         $creditBalance = "GREATEST(-{$net}, 0.00)";
+        $integrityScope = $this->integrity->postedScope($actor);
+        if ($asOf !== null) {
+            $integrityScope->where('integrity_entries.entry_date', '<=', $asOf);
+        }
         $rows = ChartAccount::ownedBy($actor)
+            ->crossJoinSub($this->integrity->summary($integrityScope), 'integrity')
             ->leftJoinSub($posted, 'posted', 'posted.chart_account_id', '=', 'chart_of_accounts.id')
             ->select(['chart_of_accounts.id', 'chart_of_accounts.code', 'chart_of_accounts.name', 'chart_of_accounts.type'])
             ->selectRaw("{$debit} AS debit_total, {$credit} AS credit_total, {$net} AS signed_net,
                 {$debitBalance} AS debit_balance, {$creditBalance} AS credit_balance,
                 SUM({$debit}) OVER () AS total_debits, SUM({$credit}) OVER () AS total_credits,
-                SUM({$debitBalance}) OVER () AS total_debit_balances, SUM({$creditBalance}) OVER () AS total_credit_balances")
+                SUM({$debitBalance}) OVER () AS total_debit_balances, SUM({$creditBalance}) OVER () AS total_credit_balances,
+                integrity.currency_count, integrity.actual_currency, integrity.unbalanced_journal_count")
             ->orderBy('chart_of_accounts.code')->orderBy('chart_of_accounts.id')->toBase()->get();
         $first = $rows->first();
+        $currency = $first === null
+            ? config('accounting.currency')
+            : $this->integrity->currency($first);
+        if ($first !== null) {
+            $this->integrity->assertBalanced($first);
+        }
         $totals = $first === null
             ? ['total_debits' => '0.00', 'total_credits' => '0.00', 'total_debit_balances' => '0.00', 'total_credit_balances' => '0.00']
             : ['total_debits' => $first->total_debits, 'total_credits' => $first->total_credits,
@@ -47,6 +61,7 @@ final class TrialBalanceQuery
         }
 
         return [
+            'currency' => $currency,
             'accounts' => $rows->map(fn ($row) => ['id' => $row->id, 'code' => $row->code, 'name' => $row->name, 'type' => $row->type,
                 'debit_total' => $row->debit_total, 'credit_total' => $row->credit_total, 'signed_net' => $row->signed_net,
                 'debit_balance' => $row->debit_balance, 'credit_balance' => $row->credit_balance])->all(),
