@@ -14,7 +14,7 @@ final class IncomeStatementQuery
             'date_to' => ['required', 'date_format:Y-m-d', 'after_or_equal:date_from'],
         ])->validate();
 
-        $snapshot = (new FinancialStatementSnapshot)->read($owner, $dateFrom, $dateTo);
+        $snapshot = (new FinancialStatementSnapshot)->read($owner, $dateFrom, $dateTo, excludeFiscalClosingJournals: true);
         $revenue = [];
         $expenses = [];
         foreach ($snapshot['rows'] as $row) {

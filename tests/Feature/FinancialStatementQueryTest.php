@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Accounting\Actions\CreateChartAccount;
+use App\Accounting\Actions\CloseFiscalYear;
 use App\Accounting\Actions\PostJournalEntry;
 use App\Accounting\Actions\ReverseJournalEntry;
 use App\Accounting\Actions\SaveJournalDraft;
@@ -249,6 +250,127 @@ class FinancialStatementQueryTest extends TestCase
         $this->assertSame('19999999999999.98', (new StatementOfFinancialPositionQuery)->execute($this->owner, '2026-01-02')['totals']['assets']);
     }
 
+    public function test_profitable_closed_year_keeps_historical_income_and_moves_profit_into_equity(): void
+    {
+        $asset = $this->account('1000', 'asset');
+        $retained = $this->account('3000', 'equity');
+        $revenue = $this->account('4000', 'revenue');
+        $expense = $this->account('5000', 'expense');
+        $this->revenueJournal('2026-01-01', '100.01', $asset, $revenue);
+        $this->journal('2026-12-31', [$this->line($expense, '40.00', '0'), $this->line($asset, '0', '40.00')]);
+        $income = new IncomeStatementQuery;
+        $position = new StatementOfFinancialPositionQuery;
+        $beforeIncome = $income->execute($this->owner, '2026-01-01', '2026-12-31');
+        $this->assertSame('60.01', $position->execute($this->owner, '2026-12-31')['totals']['unclosed_cumulative_profit_loss']);
+
+        $close = (new CloseFiscalYear)->execute($this->owner, '2026-01-01', '2026-12-31', config('accounting.currency'), $retained->id);
+        $this->assertNotNull($close->journal_entry_id);
+        $this->assertSame($beforeIncome, $income->execute($this->owner, '2026-01-01', '2026-12-31'));
+        $after = $position->execute($this->owner, '2026-12-31');
+        $this->assertSame('60.01', $after['totals']['assets']);
+        $this->assertSame('60.01', $after['totals']['equity']);
+        $this->assertSame('0.00', $after['totals']['unclosed_cumulative_profit_loss']);
+        $this->assertSame('60.01', $after['totals']['liabilities_equity_and_unclosed_profit_loss']);
+        $this->assertSame('0.00', $after['totals']['equation_difference']);
+        $this->assertSame('60.01', $after['equity'][0]['amount']);
+
+        $trial = (new TrialBalanceQuery)->execute($this->owner, '2026-12-31');
+        $byCode = array_column($trial['accounts'], null, 'code');
+        $this->assertSame('0.00', $byCode['4000']['signed_net']);
+        $this->assertSame('0.00', $byCode['5000']['signed_net']);
+        $this->assertSame('-60.01', $byCode['3000']['signed_net']);
+    }
+
+    public function test_loss_and_contra_balances_stay_in_closed_year_income_but_not_unclosed_position(): void
+    {
+        $asset = $this->account('1000', 'asset');
+        $retained = $this->account('3000', 'equity');
+        $revenue = $this->account('4000', 'revenue');
+        $expense = $this->account('5000', 'expense');
+        $this->journal('2026-01-01', [$this->line($revenue, '20.00', '0'), $this->line($asset, '0', '20.00')]);
+        $this->journal('2026-12-31', [$this->line($asset, '5.00', '0'), $this->line($expense, '0', '5.00')]);
+        $income = new IncomeStatementQuery;
+        $before = $income->execute($this->owner, '2026-01-01', '2026-12-31');
+        $this->assertSame(['total_revenue' => '-20.00', 'total_expense' => '-5.00', 'net_profit_loss' => '-15.00'], $before['totals']);
+        (new CloseFiscalYear)->execute($this->owner, '2026-01-01', '2026-12-31', config('accounting.currency'), $retained->id);
+        $this->assertSame($before, $income->execute($this->owner, '2026-01-01', '2026-12-31'));
+        $after = (new StatementOfFinancialPositionQuery)->execute($this->owner, '2026-12-31');
+        $this->assertSame('-15.00', $after['totals']['assets']);
+        $this->assertSame('-15.00', $after['totals']['equity']);
+        $this->assertSame('0.00', $after['totals']['unclosed_cumulative_profit_loss']);
+        $this->assertSame('0.00', $after['totals']['equation_difference']);
+    }
+
+    public function test_later_year_profit_remains_unclosed_and_ordinary_reversal_keeps_its_own_date(): void
+    {
+        $asset = $this->account('1000', 'asset');
+        $retained = $this->account('3000', 'equity');
+        $revenue = $this->account('4000', 'revenue');
+        $expense = $this->account('5000', 'expense');
+        $this->revenueJournal('2026-12-31', '60.01', $asset, $revenue);
+        (new CloseFiscalYear)->execute($this->owner, '2026-01-01', '2026-12-31', config('accounting.currency'), $retained->id);
+        $laterRevenue = $this->revenueJournal('2027-01-01', '10.00', $asset, $revenue);
+        $this->journal('2027-01-01', [$this->line($expense, '3.00', '0'), $this->line($asset, '0', '3.00')]);
+        $position = (new StatementOfFinancialPositionQuery)->execute($this->owner, '2027-01-01');
+        $this->assertSame('60.01', $position['totals']['equity']);
+        $this->assertSame('7.00', $position['totals']['unclosed_cumulative_profit_loss']);
+        $this->assertSame('67.01', $position['totals']['assets']);
+        $this->assertSame('0.00', $position['totals']['equation_difference']);
+        $this->assertSame('7.00', (new IncomeStatementQuery)->execute($this->owner, '2027-01-01', '2027-01-01')['totals']['net_profit_loss']);
+
+        $this->travelTo(Carbon::parse('2027-01-02'));
+        try {
+            (new ReverseJournalEntry)->execute($this->owner, $laterRevenue->id);
+        } finally {
+            $this->travelBack();
+        }
+        $income = new IncomeStatementQuery;
+        $this->assertSame('-10.00', $income->execute($this->owner, '2027-01-02', '2027-01-02')['totals']['net_profit_loss']);
+        $this->assertSame('60.01', $income->execute($this->owner, '2026-01-01', '2026-12-31')['totals']['net_profit_loss']);
+        $this->assertSame('0.00', (new StatementOfFinancialPositionQuery)->execute($this->owner, '2027-01-02')['totals']['equation_difference']);
+    }
+
+    public function test_zero_activity_close_does_not_change_reports_and_owner_scope_isolated(): void
+    {
+        $retained = $this->account('3000', 'equity');
+        $otherRetained = $this->account('3000', 'equity', $this->other);
+        $otherAsset = $this->account('1000', 'asset', $this->other);
+        $otherRevenue = $this->account('4000', 'revenue', $this->other);
+        $this->revenueJournal('2026-01-01', '99.00', $otherAsset, $otherRevenue, owner: $this->other);
+        $before = (new IncomeStatementQuery)->execute($this->owner, '2026-01-01', '2026-12-31');
+        $close = (new CloseFiscalYear)->execute($this->owner, '2026-01-01', '2026-12-31', config('accounting.currency'), $retained->id);
+        $this->assertNull($close->journal_entry_id);
+        $this->assertSame($before, (new IncomeStatementQuery)->execute($this->owner, '2026-01-01', '2026-12-31'));
+        $this->assertSame('0.00', (new StatementOfFinancialPositionQuery)->execute($this->owner, '2026-12-31')['totals']['equation_difference']);
+        $otherBefore = (new IncomeStatementQuery)->execute($this->other, '2026-01-01', '2026-12-31');
+        (new CloseFiscalYear)->execute($this->other, '2026-01-01', '2026-12-31', config('accounting.currency'), $otherRetained->id);
+        $this->assertSame($otherBefore, (new IncomeStatementQuery)->execute($this->other, '2026-01-01', '2026-12-31'));
+        $this->assertSame($before, (new IncomeStatementQuery)->execute($this->owner, '2026-01-01', '2026-12-31'));
+    }
+
+    public function test_closed_year_preserves_exact_maximum_and_mixed_currency_detection(): void
+    {
+        $asset = $this->account('1000', 'asset');
+        $retained = $this->account('3000', 'equity');
+        $revenue = $this->account('4000', 'revenue');
+        $this->revenueJournal('2026-12-31', '9999999999999.99', $asset, $revenue);
+        (new CloseFiscalYear)->execute($this->owner, '2026-01-01', '2026-12-31', config('accounting.currency'), $retained->id);
+        $income = new IncomeStatementQuery;
+        $position = new StatementOfFinancialPositionQuery;
+        $this->assertSame('9999999999999.99', $income->execute($this->owner, '2026-01-01', '2026-12-31')['totals']['net_profit_loss']);
+        $this->assertSame('9999999999999.99', $position->execute($this->owner, '2026-12-31')['totals']['equity']);
+        $this->assertSame('0.00', $position->execute($this->owner, '2026-12-31')['totals']['unclosed_cumulative_profit_loss']);
+        $configured = config('accounting.currency');
+        try {
+            config(['accounting.currency' => $configured === 'SAR' ? 'USD' : 'SAR']);
+            $this->revenueJournal('2027-01-01', '0.01', $asset, $revenue);
+            $this->assertCurrencyConflict(fn () => $income->execute($this->owner, '2026-01-01', '2027-01-01'));
+            $this->assertCurrencyConflict(fn () => $position->execute($this->owner, '2027-01-01'));
+        } finally {
+            config(['accounting.currency' => $configured]);
+        }
+    }
+
     public function test_corrupt_unbalanced_posted_ledger_is_rejected_without_mutation(): void
     {
         $asset = $this->account('1000', 'asset');
@@ -322,10 +444,12 @@ class FinancialStatementQueryTest extends TestCase
             (new IncomeStatementQuery)->execute($this->owner, '2026-01-01', '2026-01-31');
             $this->assertCount(1, DB::getQueryLog());
             $this->assertStringNotContainsString('for update', strtolower(DB::getQueryLog()[0]['query']));
+            $this->assertStringContainsString('not exists (select 1 from fiscal_year_closes', strtolower(DB::getQueryLog()[0]['query']));
             DB::flushQueryLog();
             (new StatementOfFinancialPositionQuery)->execute($this->owner, '2026-01-31');
             $this->assertCount(1, DB::getQueryLog());
             $this->assertStringNotContainsString('for update', strtolower(DB::getQueryLog()[0]['query']));
+            $this->assertStringNotContainsString('fiscal_year_closes', strtolower(DB::getQueryLog()[0]['query']));
         } finally {
             DB::disableQueryLog();
             DB::flushQueryLog();

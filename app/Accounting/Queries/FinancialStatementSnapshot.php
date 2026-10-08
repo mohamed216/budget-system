@@ -9,18 +9,21 @@ use Illuminate\Support\Facades\DB;
 final class FinancialStatementSnapshot
 {
     /** One non-locking MySQL statement supplies scoped account balances, currency, and totals. */
-    public function read(User $owner, ?string $dateFrom, string $dateTo): array
+    public function read(User $owner, ?string $dateFrom, string $dateTo, bool $excludeFiscalClosingJournals = false): array
     {
         $datePredicate = $dateFrom === null
             ? 'AND je.entry_date <= ?'
             : 'AND je.entry_date >= ? AND je.entry_date <= ?';
+        $closingPredicate = $excludeFiscalClosingJournals
+            ? 'AND NOT EXISTS (SELECT 1 FROM fiscal_year_closes fyc WHERE fyc.user_id = je.user_id AND fyc.journal_entry_id = je.id)'
+            : '';
         $bindings = [$owner->getKey(), ...($dateFrom === null ? [] : [$dateFrom]), $dateTo, $owner->getKey(), $owner->getKey()];
 
         $rows = DB::select(<<<SQL
 WITH posted_scope AS (
     SELECT je.id, je.user_id, je.currency
     FROM journal_entries je
-    WHERE je.user_id = ? AND je.status = 'posted' {$datePredicate}
+    WHERE je.user_id = ? AND je.status = 'posted' {$datePredicate} {$closingPredicate}
 ),
 currency_summary AS (
     SELECT COUNT(DISTINCT CAST(currency AS BINARY)) AS currency_count, MIN(currency) AS actual_currency
