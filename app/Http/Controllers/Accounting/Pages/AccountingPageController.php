@@ -2,25 +2,19 @@
 
 namespace App\Http\Controllers\Accounting\Pages;
 
-use App\Accounting\Actions\CloseAccountingPeriod;
-use App\Accounting\Actions\CreateAccountingPeriod;
 use App\Accounting\Actions\CreateChartAccount;
-use App\Accounting\Actions\DeleteAccountingPeriod;
 use App\Accounting\Actions\DeleteChartAccount;
 use App\Accounting\Actions\DeleteJournalDraft;
 use App\Accounting\Actions\PostJournalEntry;
-use App\Accounting\Actions\ReopenAccountingPeriod;
 use App\Accounting\Actions\ReverseJournalEntry;
 use App\Accounting\Actions\SaveJournalDraft;
-use App\Accounting\Actions\UpdateAccountingPeriod;
 use App\Accounting\Actions\UpdateChartAccount;
 use App\Accounting\Exceptions\AccountingConflict;
 use App\Accounting\Queries\OwnedChartAccounts;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Accounting\AccountingPeriodRequest;
+use App\Http\Presenters\AccountingPageMutation;
 use App\Http\Requests\Accounting\ChartAccountRequest;
 use App\Http\Requests\Accounting\JournalPageRequest;
-use App\Models\AccountingPeriod;
 use App\Models\ChartAccount;
 use App\Models\JournalEntry;
 use Illuminate\Http\Request;
@@ -28,7 +22,10 @@ use Illuminate\Support\Facades\Gate;
 
 class AccountingPageController extends Controller
 {
-    public function __construct(private readonly OwnedChartAccounts $accounts) {}
+    public function __construct(
+        private readonly OwnedChartAccounts $accounts,
+        private readonly AccountingPageMutation $mutation,
+    ) {}
 
     private function accounts(Request $request)
     {
@@ -51,73 +48,9 @@ class AccountingPageController extends Controller
         return $entry;
     }
 
-    private function period(Request $request, string $id): AccountingPeriod
-    {
-        $period = AccountingPeriod::ownedBy($request->user())->findOrFail($id);
-        Gate::authorize('view', $period);
-
-        return $period;
-    }
-
-    private function mutatePeriod(Request $request, string $id, string $ability, callable $operation)
-    {
-        $period = $this->period($request, $id);
-
-        return $this->mutate($request, function () use ($ability, $period, $operation): void {
-            if (Gate::inspect($ability, $period)->denied()) {
-                throw new AccountingConflict('لا يمكن تنفيذ العملية على هذه الفترة المحاسبية في حالتها الحالية.');
-            }
-            $operation($period);
-        }, route('accounting-pages.periods.index'));
-    }
-
     private function mutate(Request $request, callable $operation, string $destination)
     {
-        try {
-            $operation();
-        } catch (AccountingConflict $exception) {
-            return back()->withInput($request->except('_token'))->withErrors(['accounting' => $exception->getMessage()]);
-        }
-
-        return redirect($destination)->with('success', 'تم حفظ العملية بنجاح.');
-    }
-
-    public function periodIndex(Request $request)
-    {
-        Gate::authorize('viewAny', AccountingPeriod::class);
-
-        return view('accounting.periods', ['periods' => AccountingPeriod::ownedBy($request->user())
-            ->orderBy('start_date')->orderBy('id')->get()]);
-    }
-
-    public function periodStore(AccountingPeriodRequest $request, CreateAccountingPeriod $action)
-    {
-        Gate::authorize('create', AccountingPeriod::class);
-        $dates = $request->validated();
-
-        return $this->mutate($request, fn () => $action->execute($request->user(), $dates['start_date'], $dates['end_date']), route('accounting-pages.periods.index'));
-    }
-
-    public function periodUpdate(AccountingPeriodRequest $request, string $period, UpdateAccountingPeriod $action)
-    {
-        $dates = $request->validated();
-
-        return $this->mutatePeriod($request, $period, 'update', fn (AccountingPeriod $record) => $action->execute($request->user(), $record->id, $dates['start_date'], $dates['end_date']));
-    }
-
-    public function periodClose(Request $request, string $period, CloseAccountingPeriod $action)
-    {
-        return $this->mutatePeriod($request, $period, 'close', fn (AccountingPeriod $record) => $action->execute($request->user(), $record->id));
-    }
-
-    public function periodReopen(Request $request, string $period, ReopenAccountingPeriod $action)
-    {
-        return $this->mutatePeriod($request, $period, 'reopen', fn (AccountingPeriod $record) => $action->execute($request->user(), $record->id));
-    }
-
-    public function periodDelete(Request $request, string $period, DeleteAccountingPeriod $action)
-    {
-        return $this->mutatePeriod($request, $period, 'delete', fn (AccountingPeriod $record) => $action->execute($request->user(), $record->id));
+        return $this->mutation->handle($request, $operation, $destination);
     }
 
     public function chartIndex(Request $request)

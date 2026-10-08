@@ -3,8 +3,13 @@
 namespace Tests\Feature;
 
 use App\Accounting\Actions\CreateAccountingPeriod;
+use App\Http\Controllers\Accounting\Pages\AccountingPeriodPageController;
 use App\Models\AccountingPeriod;
 use App\Models\User;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
+use PDOException;
 use Tests\Concerns\RefreshFinancialDatabase;
 use Tests\TestCase;
 
@@ -32,6 +37,69 @@ class AccountingPeriodPageTest extends TestCase
     private function dates(string $start = '2026-01-01', string $end = '2026-01-31'): array
     {
         return ['start_date' => $start, 'end_date' => $end];
+    }
+
+    public function test_period_page_routes_preserve_methods_names_middleware_and_controller_targets(): void
+    {
+        foreach ([
+            ['periods.index', 'GET', 'periods', 'periodIndex'],
+            ['periods.store', 'POST', 'periods', 'periodStore'],
+            ['periods.update', 'PUT', 'periods/{period}', 'periodUpdate'],
+            ['periods.close', 'POST', 'periods/{period}/close', 'periodClose'],
+            ['periods.reopen', 'POST', 'periods/{period}/reopen', 'periodReopen'],
+            ['periods.destroy', 'DELETE', 'periods/{period}', 'periodDelete'],
+        ] as [$name, $method, $path, $action]) {
+            $route = Route::getRoutes()->getByName('accounting-pages.'.$name);
+            $this->assertNotNull($route);
+            $this->assertSame('accounting/pages/'.$path, $route->uri());
+            $this->assertSame($method === 'GET' ? ['GET', 'HEAD'] : [$method], $route->methods());
+            $this->assertSame(AccountingPeriodPageController::class, $route->getControllerClass());
+            $this->assertSame($action, $route->getActionMethod());
+            $this->assertContains('web', $route->gatherMiddleware());
+            $this->assertContains('auth', $route->gatherMiddleware());
+        }
+    }
+
+    public function test_update_validation_preserves_only_the_target_period_old_input(): void
+    {
+        $period = $this->period($this->owner, '2026-01-01', '2026-01-31');
+        $index = route('accounting-pages.periods.index');
+        $this->actingAs($this->owner)->from($index)
+            ->put(route('accounting-pages.periods.update', $period->id), [
+                '_period_id' => (string) $period->id,
+                'start_date' => '2026-01-02',
+                'end_date' => 'bad-date',
+            ])->assertRedirect($index)->assertSessionHasErrors('end_date');
+        $this->get($index)->assertOk()->assertSee('value="2026-01-02"', false)
+            ->assertSee('value="bad-date"', false);
+        $this->assertSame('2026-01-01', $period->fresh()->start_date->format('Y-m-d'));
+    }
+
+    public function test_ineligible_period_operations_keep_the_existing_arabic_conflict(): void
+    {
+        $period = $this->period($this->owner, '2026-01-01', '2026-01-31');
+        $index = route('accounting-pages.periods.index');
+        $this->actingAs($this->owner)->post(route('accounting-pages.periods.close', $period->id))->assertRedirect($index);
+        foreach ([
+            ['PUT', 'periods.update', $this->dates('2026-01-02', '2026-01-31')],
+            ['POST', 'periods.close', []],
+            ['DELETE', 'periods.destroy', []],
+        ] as [$method, $name, $data]) {
+            $this->from($index)->call($method, route('accounting-pages.'.$name, $period->id), $data)
+                ->assertRedirect($index)->assertSessionHasErrors('accounting');
+            $this->assertSame('لا يمكن تنفيذ العملية على هذه الفترة المحاسبية في حالتها الحالية.',
+                session('errors')->first('accounting'));
+        }
+    }
+
+    public function test_period_page_database_errors_remain_sanitized(): void
+    {
+        DB::listen(function (): void {
+            throw new QueryException('mysql_testing', 'private_sql_text', [], new PDOException('private_database_detail'));
+        });
+        $this->actingAs($this->owner)->get(route('accounting-pages.periods.index'))
+            ->assertStatus(500)->assertViewIs('accounting.error')
+            ->assertDontSee('private_sql_text')->assertDontSee('private_database_detail');
     }
 
     public function test_guest_cannot_access_period_page_or_actions(): void
