@@ -51,6 +51,31 @@ final readonly class DecimalAmount
         return new self(implode('', array_reverse($digits)));
     }
 
+    /** Exact, nonnegative aggregate subtraction; neither operand is changed. */
+    public function subtract(self $other): self
+    {
+        if ($this->compare($other) < 0) {
+            throw new InvalidArgumentException('Amount subtraction cannot produce a negative result.');
+        }
+
+        $left = strlen($this->minorUnits) - 1;
+        $right = strlen($other->minorUnits) - 1;
+        $borrow = 0;
+        $digits = [];
+        while ($left >= 0) {
+            $digit = ord($this->minorUnits[$left--]) - 48 - $borrow;
+            if ($right >= 0) {
+                $digit -= ord($other->minorUnits[$right--]) - 48;
+            }
+            $borrow = $digit < 0 ? 1 : 0;
+            $digits[] = (string) ($digit < 0 ? $digit + 10 : $digit);
+        }
+
+        $minorUnits = ltrim(implode('', array_reverse($digits)), '0');
+
+        return new self($minorUnits === '' ? '0' : $minorUnits);
+    }
+
     /** Return -1, 0, or 1 without numeric-string coercion. */
     public function compare(self $other): int
     {

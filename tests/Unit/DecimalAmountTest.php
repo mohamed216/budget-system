@@ -40,6 +40,49 @@ class DecimalAmountTest extends TestCase
         $this->assertSame('0.00', DecimalAmount::fromString('0')->add(DecimalAmount::fromString('0'))->toDecimal());
     }
 
+    #[DataProvider('nonnegativeSubtractions')]
+    public function test_nonnegative_subtraction_is_exact_and_canonical(string $left, string $right, string $expected): void
+    {
+        $greater = DecimalAmount::fromString($left);
+        $lesser = DecimalAmount::fromString($right);
+
+        $this->assertSame($expected, $greater->subtract($lesser)->toDecimal());
+        $this->assertSame(DecimalAmount::fromString($left)->toDecimal(), $greater->toDecimal());
+        $this->assertSame(DecimalAmount::fromString($right)->toDecimal(), $lesser->toDecimal());
+    }
+
+    public static function nonnegativeSubtractions(): array
+    {
+        return [
+            ['10.00', '3.25', '6.75'],
+            ['1000.00', '0.01', '999.99'],
+            ['1000000000000.00', '999999999999.99', '0.01'],
+            ['1.23', '1.23', '0.00'],
+            ['9999999999999.99', '0.01', '9999999999999.98'],
+            ['10.00', '0.00', '10.00'],
+            ['00010.00', '0003.25', '6.75'],
+        ];
+    }
+
+    public function test_subtraction_rejects_a_negative_result(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        DecimalAmount::fromString('3.25')->subtract(DecimalAmount::fromString('10.00'));
+    }
+
+    public function test_subtraction_accepts_exact_aggregate_values_above_storage_range(): void
+    {
+        $maximum = DecimalAmount::fromString('9999999999999.99');
+        $aggregate = $maximum->add($maximum);
+
+        $this->assertSame('9999999999999.99', $aggregate->subtract($maximum)->toDecimal());
+        for ($i = 0; $i < 64; $i++) {
+            $aggregate = $aggregate->add($aggregate);
+        }
+        $this->assertSame('0.00', $aggregate->subtract($aggregate)->toDecimal());
+        $this->assertSame($aggregate->toDecimal(), $aggregate->add($maximum)->subtract($maximum)->toDecimal());
+    }
+
     public function test_aggregate_totals_exceed_storage_and_native_integer_ranges(): void
     {
         $maximum = DecimalAmount::fromString('9999999999999.99');
