@@ -73,7 +73,7 @@ class AccountingHttpTest extends TestCase
     public function test_route_set_is_authenticated_and_has_no_independent_line_crud(): void
     {
         $routes = collect(Route::getRoutes())->filter(fn ($route) => str_starts_with($route->getName() ?? '', 'accounting.'));
-        $this->assertCount(27, $routes);
+        $this->assertCount(30, $routes);
         foreach ($routes as $route) {
             $this->assertContains('auth', $route->gatherMiddleware());
             $this->assertContains('web', $route->gatherMiddleware());
@@ -89,6 +89,9 @@ class AccountingHttpTest extends TestCase
             $this->assertSame(['GET', 'HEAD'], $route->methods());
         }
         foreach ([
+            'accounting.fiscal-year-closes.index' => ['accounting/fiscal-year-closes', ['GET', 'HEAD']],
+            'accounting.fiscal-year-closes.store' => ['accounting/fiscal-year-closes', ['POST']],
+            'accounting.fiscal-year-closes.show' => ['accounting/fiscal-year-closes/{fiscalYearClose}', ['GET', 'HEAD']],
             'accounting.opening-balances.store' => ['accounting/opening-balances', ['POST']],
             'accounting.opening-balances.show' => ['accounting/opening-balances/{openingBalance}', ['GET', 'HEAD']],
             'accounting.opening-balances.update' => ['accounting/opening-balances/{openingBalance}', ['PUT']],

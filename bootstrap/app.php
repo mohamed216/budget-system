@@ -1,11 +1,16 @@
 <?php
 
 use App\Accounting\Exceptions\AccountingConflict;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -14,8 +19,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Preserve exact decimal input syntax on journal and opening-balance endpoints and forms.
-        $middleware->trimStrings(except: [fn (Request $request) => $request->is('accounting/journals', 'accounting/journals/*', 'accounting/pages/journals', 'accounting/pages/journals/*', 'accounting/opening-balances', 'accounting/opening-balances/*', 'accounting/pages/opening-balances', 'accounting/pages/opening-balances/*')]);
+        // Preserve exact journal/opening-balance amounts and fiscal-year-close input values.
+        $middleware->trimStrings(except: [fn (Request $request) => $request->is('accounting/journals', 'accounting/journals/*', 'accounting/pages/journals', 'accounting/pages/journals/*', 'accounting/opening-balances', 'accounting/opening-balances/*', 'accounting/pages/opening-balances', 'accounting/pages/opening-balances/*')
+            || ($request->isMethod('POST') && $request->is('accounting/fiscal-year-closes'))]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(fn (Request $request, Throwable $exception) => $request->routeIs('accounting.*') || $request->expectsJson());
@@ -26,6 +32,9 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($request->routeIs('accounting.opening-balances.*')) {
                 return response()->json(['message' => 'Opening balance request could not be completed.'], 500);
             }
+            if ($request->routeIs('accounting.fiscal-year-closes.*')) {
+                return response()->json(['message' => 'Fiscal-year close request could not be completed.'], 500);
+            }
 
             return null;
         });
@@ -35,5 +44,17 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return null;
+        });
+        $exceptions->render(function (Throwable $exception, Request $request) {
+            if (! $request->routeIs('accounting.fiscal-year-closes.*')
+                || $exception instanceof ValidationException
+                || $exception instanceof AuthenticationException
+                || $exception instanceof AuthorizationException
+                || $exception instanceof ModelNotFoundException
+                || $exception instanceof HttpExceptionInterface) {
+                return null;
+            }
+
+            return response()->json(['message' => 'Fiscal-year close request could not be completed.'], 500);
         });
     })->create();
