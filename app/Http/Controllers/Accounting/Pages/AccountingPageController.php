@@ -24,6 +24,7 @@ use App\Accounting\Queries\IncomeStatementQuery;
 use App\Accounting\Queries\StatementOfFinancialPositionQuery;
 use App\Accounting\Queries\TrialBalanceQuery;
 use App\Http\Controllers\Controller;
+use App\Http\Presenters\AccountingConflictPresentation;
 use App\Http\Requests\Accounting\AccountingPeriodRequest;
 use App\Http\Requests\Accounting\ChartAccountRequest;
 use App\Http\Requests\Accounting\GeneralLedgerPageRequest;
@@ -93,7 +94,7 @@ class AccountingPageController extends Controller
         ]);
     }
 
-    public function openingBalanceStore(OpeningBalancePageRequest $request, CreateOpeningBalanceDraft $action)
+    public function openingBalanceStore(OpeningBalancePageRequest $request, CreateOpeningBalanceDraft $action, AccountingConflictPresentation $presentation)
     {
         $data = $request->validated();
         try {
@@ -101,18 +102,18 @@ class AccountingPageController extends Controller
         } catch (ValidationException $exception) {
             return $this->openingBalanceError($request, route('accounting-pages.opening-balances.index'), $this->openingBalanceValidationMessage($exception));
         } catch (AccountingConflict $exception) {
-            return $this->openingBalanceError($request, route('accounting-pages.opening-balances.index'), 'تاريخ الافتتاح يقع ضمن فترة محاسبية مغلقة.');
+            return $this->openingBalanceError($request, route('accounting-pages.opening-balances.index'), $presentation->openingBalanceDraft($exception));
         }
 
         return redirect()->route('accounting-pages.opening-balances.show', $batch->id)->with('success', 'تم حفظ مسودة الأرصدة الافتتاحية.');
     }
 
-    public function openingBalanceUpdate(OpeningBalancePageRequest $request, string $openingBalance, UpdateOpeningBalanceDraft $action)
+    public function openingBalanceUpdate(OpeningBalancePageRequest $request, string $openingBalance, UpdateOpeningBalanceDraft $action, AccountingConflictPresentation $presentation)
     {
         $batch = $this->openingBalance($request, $openingBalance);
         $destination = route('accounting-pages.opening-balances.show', $batch->id);
         if ($batch->isPosted()) {
-            return $this->openingBalanceError($request, $destination, 'لا يمكن تعديل أرصدة افتتاحية تم ترحيلها.');
+            return $this->openingBalanceError($request, $destination, AccountingConflictPresentation::OPENING_BALANCE_POSTED);
         }
         $data = $request->validated();
         try {
@@ -120,10 +121,7 @@ class AccountingPageController extends Controller
         } catch (ValidationException $exception) {
             return $this->openingBalanceError($request, $destination, $this->openingBalanceValidationMessage($exception));
         } catch (AccountingConflict $exception) {
-            $message = str_contains($exception->getMessage(), 'period')
-                ? 'تاريخ الافتتاح يقع ضمن فترة محاسبية مغلقة.' : 'لا يمكن تعديل أرصدة افتتاحية تم ترحيلها.';
-
-            return $this->openingBalanceError($request, $destination, $message);
+            return $this->openingBalanceError($request, $destination, $presentation->openingBalanceDraft($exception));
         }
 
         return redirect($destination)->with('success', 'تم تحديث مسودة الأرصدة الافتتاحية.');
@@ -142,18 +140,14 @@ class AccountingPageController extends Controller
         return redirect()->route('accounting-pages.opening-balances.index')->with('success', 'تم حذف مسودة الأرصدة الافتتاحية.');
     }
 
-    public function openingBalancePost(Request $request, string $openingBalance, PostOpeningBalanceBatch $action)
+    public function openingBalancePost(Request $request, string $openingBalance, PostOpeningBalanceBatch $action, AccountingConflictPresentation $presentation)
     {
         $batch = $this->openingBalance($request, $openingBalance);
         $destination = route('accounting-pages.opening-balances.show', $batch->id);
         try {
             $action->execute($request->user(), $batch->id);
         } catch (AccountingConflict $exception) {
-            $message = str_contains($exception->getMessage(), 'period')
-                ? 'تاريخ الافتتاح يقع ضمن فترة محاسبية مغلقة.'
-                : 'تعذر ترحيل الأرصدة الافتتاحية. تحقق من العملة والحسابات النشطة وتوازن السطور.';
-
-            return $this->openingBalanceError($request, $destination, $message);
+            return $this->openingBalanceError($request, $destination, $presentation->openingBalancePost($exception));
         }
 
         return redirect($destination)->with('success', 'تم ترحيل الأرصدة الافتتاحية وإنشاء القيد المرتبط.');

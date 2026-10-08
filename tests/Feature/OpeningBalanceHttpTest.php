@@ -195,7 +195,7 @@ class OpeningBalanceHttpTest extends TestCase
             $this->postJson('/accounting/opening-balances', $this->payload()),
             $this->putJson('/accounting/opening-balances/'.$batch->id, $this->payload()),
         ] as $response) {
-            $response->assertConflict()->assertJsonStructure(['message']);
+            $response->assertConflict()->assertJsonPath('message', 'Accounting period for the journal date is closed.');
             $this->assertStringNotContainsString('SQLSTATE', $response->getContent());
             $this->assertStringNotContainsString('accounting_obb_', $response->getContent());
             $this->assertStringNotContainsString('stack trace', strtolower($response->getContent()));

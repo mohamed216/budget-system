@@ -4,6 +4,7 @@ namespace App\Accounting\Actions;
 
 use App\Accounting\AccountingPeriodLocks;
 use App\Accounting\Exceptions\AccountingConflict;
+use App\Accounting\Exceptions\AccountingConflictReason;
 use App\Accounting\OpeningBalanceInput;
 use App\Accounting\OpeningBalanceTotals;
 use App\Accounting\PeriodGuard;
@@ -27,7 +28,8 @@ final class SaveOpeningBalanceDraft
                 // Resolve ownership before checking the target date; no batch lock precedes the period lock.
                 $candidate = OpeningBalanceBatch::ownedBy($actor)->whereKey($batchId)->firstOrFail();
                 if ($candidate->isPosted()) {
-                    throw new AccountingConflict('Posted opening balance batch cannot be modified.');
+                    throw new AccountingConflict('Posted opening balance batch cannot be modified.',
+                        reason: AccountingConflictReason::OpeningBalancePosted);
                 }
             }
             (new PeriodGuard)->assertOpen($actor, $header['opening_date']);
@@ -38,7 +40,8 @@ final class SaveOpeningBalanceDraft
             } else {
                 $batch = OpeningBalanceBatch::ownedBy($actor)->whereKey($batchId)->lockForUpdate()->firstOrFail();
                 if (! $batch->isDraft()) {
-                    throw new AccountingConflict('Posted opening balance batch cannot be modified.');
+                    throw new AccountingConflict('Posted opening balance batch cannot be modified.',
+                        reason: AccountingConflictReason::OpeningBalancePosted);
                 }
             }
             if ($batchId !== null) {

@@ -5,6 +5,7 @@ namespace App\Accounting\Actions;
 use App\Accounting\AccountingPeriodLocks;
 use App\Accounting\DecimalAmount;
 use App\Accounting\Exceptions\AccountingConflict;
+use App\Accounting\Exceptions\AccountingConflictReason;
 use App\Accounting\FiscalYearCloseInput;
 use App\Accounting\FiscalYearCloseOverlap;
 use App\Accounting\FiscalYearProfitLoss;
@@ -32,22 +33,26 @@ final class CloseFiscalYear
             AccountingPeriod::ownedBy($actor)->where('start_date', '<=', $end)
                 ->where('end_date', '>=', $start)->orderBy('id')->lockForUpdate()->get(['id']);
             if ((new FiscalYearCloseOverlap)->exists($actor, $start, $end, lockForUpdate: true)) {
-                throw new AccountingConflict('Fiscal year overlaps an existing close.');
+                throw new AccountingConflict('Fiscal year overlaps an existing close.',
+                    reason: AccountingConflictReason::FiscalYearOverlap);
             }
             if (JournalEntry::ownedBy($actor)->where('status', 'draft')->whereBetween('entry_date', [$start, $end])
                 ->orderBy('id')->lockForUpdate()->get(['id'])->isNotEmpty()) {
-                throw new AccountingConflict('Draft journals must be resolved before closing the fiscal year.');
+                throw new AccountingConflict('Draft journals must be resolved before closing the fiscal year.',
+                    reason: AccountingConflictReason::FiscalYearDraftJournals);
             }
             if (OpeningBalanceBatch::ownedBy($actor)->where('status', 'draft')->whereBetween('opening_date', [$start, $end])
                 ->orderBy('id')->lockForUpdate()->get(['id'])->isNotEmpty()) {
-                throw new AccountingConflict('Draft opening balances must be resolved before closing the fiscal year.');
+                throw new AccountingConflict('Draft opening balances must be resolved before closing the fiscal year.',
+                    reason: AccountingConflictReason::FiscalYearDraftOpeningBalances);
             }
 
             $posted = JournalEntry::ownedBy($actor)->where('status', 'posted')->whereBetween('entry_date', [$start, $end])
                 ->orderBy('id')->lockForUpdate()->get(['id', 'user_id', 'currency']);
             foreach ($posted as $journal) {
                 if ($journal->currency !== $input['currency']) {
-                    throw new AccountingConflict('Posted journal currency does not match the fiscal-year currency.');
+                    throw new AccountingConflict('Posted journal currency does not match the fiscal-year currency.',
+                        reason: AccountingConflictReason::FiscalYearCurrencyMismatch);
                 }
             }
             $lines = JournalLine::ownedBy($actor)->whereIn('journal_entry_id', $posted->pluck('id')->all())
@@ -86,7 +91,8 @@ final class CloseFiscalYear
             $retained = ChartAccount::ownedBy($actor)->whereKey((int) $input['retained_earnings_account_id'])
                 ->lockForUpdate()->first();
             if ($retained === null || ! $retained->is_active || $retained->type !== 'equity') {
-                throw new AccountingConflict('Retained earnings account must be an owned, active equity account.');
+                throw new AccountingConflict('Retained earnings account must be an owned, active equity account.',
+                    reason: AccountingConflictReason::FiscalYearRetainedEarningsAccount);
             }
 
             try {

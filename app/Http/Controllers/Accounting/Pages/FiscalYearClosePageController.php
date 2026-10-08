@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Accounting\Pages;
 use App\Accounting\Actions\CloseFiscalYear;
 use App\Accounting\Exceptions\AccountingConflict;
 use App\Http\Controllers\Controller;
+use App\Http\Presenters\AccountingConflictPresentation;
 use App\Http\Requests\Accounting\FiscalYearClosePageRequest;
 use App\Models\ChartAccount;
 use App\Models\FiscalYearClose;
@@ -33,7 +34,7 @@ class FiscalYearClosePageController extends Controller
         return view('accounting.fiscal-year-closes.create', compact('accounts'));
     }
 
-    public function store(FiscalYearClosePageRequest $request, CloseFiscalYear $action)
+    public function store(FiscalYearClosePageRequest $request, CloseFiscalYear $action, AccountingConflictPresentation $presentation)
     {
         $data = $request->validated();
         try {
@@ -55,7 +56,7 @@ class FiscalYearClosePageController extends Controller
         } catch (AccountingConflict $exception) {
             return redirect()->route('accounting-pages.fiscal-year-closes.create')
                 ->withInput($request->only('start_date', 'end_date', 'currency', 'retained_earnings_account_id'))
-                ->withErrors(['accounting' => $this->conflictMessage($exception)]);
+                ->withErrors(['accounting' => $presentation->fiscalYearClose($exception)]);
         }
 
         return redirect()->route('accounting-pages.fiscal-year-closes.show', $close->id)
@@ -71,17 +72,5 @@ class FiscalYearClosePageController extends Controller
         ]);
 
         return view('accounting.fiscal-year-closes.show', compact('close'));
-    }
-
-    private function conflictMessage(AccountingConflict $exception): string
-    {
-        return match ($exception->getMessage()) {
-            'Fiscal year overlaps an existing close.' => 'تتداخل الفترة المختارة مع سنة مالية مقفلة مسبقاً.',
-            'Draft journals must be resolved before closing the fiscal year.' => 'يجب معالجة مسودات القيود اليومية ضمن الفترة قبل الإقفال.',
-            'Draft opening balances must be resolved before closing the fiscal year.' => 'يجب معالجة مسودات الأرصدة الافتتاحية ضمن الفترة قبل الإقفال.',
-            'Retained earnings account must be an owned, active equity account.' => 'اختر حساب أرباح محتجزة نشطاً من حقوق الملكية يخصك.',
-            'Posted journal currency does not match the fiscal-year currency.' => 'عملة أحد القيود المرحلة لا تطابق عملة السنة المالية.',
-            default => 'تعذر إقفال السنة المالية. تحقق من القيود والحسابات وتوازن المبالغ.',
-        };
     }
 }

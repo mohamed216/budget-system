@@ -8,6 +8,7 @@ use App\Accounting\Actions\CreateChartAccount;
 use App\Accounting\Actions\CreateOpeningBalanceDraft;
 use App\Models\OpeningBalanceBatch;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Tests\Concerns\RefreshFinancialDatabase;
 use Tests\TestCase;
@@ -130,6 +131,7 @@ class OpeningBalancePageTest extends TestCase
             ->assertDontSee(route('accounting-pages.opening-balances.post', $batch->id), false);
         $this->from($show)->put(route('accounting-pages.opening-balances.update', $batch->id), $this->payload())
             ->assertRedirect($show)->assertSessionHasErrors('accounting');
+        $this->get($show)->assertSee('لا يمكن تعديل أرصدة افتتاحية تم ترحيلها.');
         $this->from($show)->delete(route('accounting-pages.opening-balances.destroy', $batch->id))
             ->assertRedirect($show)->assertSessionHasErrors('accounting');
         $this->post(route('accounting-pages.opening-balances.post', $batch->id))->assertRedirect($show);
@@ -185,6 +187,26 @@ class OpeningBalancePageTest extends TestCase
         $this->get($show)->assertSee('تاريخ الافتتاح يقع ضمن فترة محاسبية مغلقة.');
         $this->assertTrue($batch->fresh()->isDraft());
         $this->assertDatabaseCount('journal_entries', 0);
+    }
+
+    public function test_fiscal_year_close_conflict_is_not_mislabeled_as_posted_batch(): void
+    {
+        $batch = $this->draft();
+        DB::table('fiscal_year_closes')->insert([
+            'user_id' => $this->owner->id, 'start_date' => '2026-01-01', 'end_date' => '2026-12-31',
+            'currency' => config('accounting.currency'), 'retained_earnings_account_id' => $this->equityId,
+            'closed_at' => now(),
+        ]);
+        $show = route('accounting-pages.opening-balances.show', $batch->id);
+
+        $this->actingAs($this->owner)->from($show)
+            ->put(route('accounting-pages.opening-balances.update', $batch->id), $this->payload())
+            ->assertRedirect($show)->assertSessionHasErrors('accounting');
+        $this->get($show)->assertOk()->assertSee('سنة مالية مقفلة نهائياً')
+            ->assertDontSee('لا يمكن تعديل أرصدة افتتاحية تم ترحيلها.')
+            ->assertDontSee('SQLSTATE')->assertDontSee('fiscal_year_closes')
+            ->assertDontSee('stack trace')->assertDontSee('/vendor/');
+        $this->assertTrue($batch->fresh()->isDraft());
     }
 
     public function test_duplicate_inactive_and_unbalanced_inputs_have_safe_arabic_errors(): void
