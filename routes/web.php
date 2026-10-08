@@ -4,6 +4,7 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Accounting\AccountingPeriodController;
 use App\Http\Controllers\Accounting\ChartAccountController;
 use App\Http\Controllers\Accounting\FiscalYearCloseController;
+use App\Http\Controllers\Accounting\Pages\FiscalYearClosePageController;
 use App\Http\Controllers\Accounting\GeneralLedgerController;
 use App\Http\Controllers\Accounting\IncomeStatementController;
 use App\Http\Controllers\Accounting\JournalEntryController;
@@ -65,6 +66,10 @@ Route::middleware('auth')->prefix('accounting')->name('accounting.')->group(func
 });
 
 Route::middleware('auth')->prefix('accounting/pages')->name('accounting-pages.')->controller(\App\Http\Controllers\Accounting\Pages\AccountingPageController::class)->group(function () {
+    Route::get('fiscal-year-closes', [FiscalYearClosePageController::class, 'index'])->name('fiscal-year-closes.index');
+    Route::get('fiscal-year-closes/create', [FiscalYearClosePageController::class, 'create'])->name('fiscal-year-closes.create');
+    Route::post('fiscal-year-closes', [FiscalYearClosePageController::class, 'store'])->name('fiscal-year-closes.store');
+    Route::get('fiscal-year-closes/{fiscalYearClose}', [FiscalYearClosePageController::class, 'show'])->whereNumber('fiscalYearClose')->name('fiscal-year-closes.show');
     Route::get('opening-balances', 'openingBalanceIndex')->name('opening-balances.index');
     Route::post('opening-balances', 'openingBalanceStore')->name('opening-balances.store');
     Route::get('opening-balances/{openingBalance}', 'openingBalanceShow')->whereNumber('openingBalance')->name('opening-balances.show');

@@ -21,7 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Preserve exact journal/opening-balance amounts and fiscal-year-close input values.
         $middleware->trimStrings(except: [fn (Request $request) => $request->is('accounting/journals', 'accounting/journals/*', 'accounting/pages/journals', 'accounting/pages/journals/*', 'accounting/opening-balances', 'accounting/opening-balances/*', 'accounting/pages/opening-balances', 'accounting/pages/opening-balances/*')
-            || ($request->isMethod('POST') && $request->is('accounting/fiscal-year-closes'))]);
+            || ($request->isMethod('POST') && $request->is('accounting/fiscal-year-closes', 'accounting/pages/fiscal-year-closes'))]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(fn (Request $request, Throwable $exception) => $request->routeIs('accounting.*') || $request->expectsJson());
@@ -46,13 +46,17 @@ return Application::configure(basePath: dirname(__DIR__))
             return null;
         });
         $exceptions->render(function (Throwable $exception, Request $request) {
-            if (! $request->routeIs('accounting.fiscal-year-closes.*')
+            if (! $request->routeIs('accounting.fiscal-year-closes.*', 'accounting-pages.fiscal-year-closes.*')
                 || $exception instanceof ValidationException
                 || $exception instanceof AuthenticationException
                 || $exception instanceof AuthorizationException
                 || $exception instanceof ModelNotFoundException
                 || $exception instanceof HttpExceptionInterface) {
                 return null;
+            }
+
+            if ($request->routeIs('accounting-pages.fiscal-year-closes.*')) {
+                return response()->view('accounting.error', [], 500);
             }
 
             return response()->json(['message' => 'Fiscal-year close request could not be completed.'], 500);
