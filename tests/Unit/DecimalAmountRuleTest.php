@@ -57,4 +57,22 @@ class DecimalAmountRuleTest extends TestCase
         $nullable = Validator::make(['amount' => null], ['amount' => ['nullable', 'string', new DecimalAmountRule]]);
         $this->assertTrue($nullable->passes());
     }
+
+    public function test_optional_legacy_limits_preserve_positive_and_input_width_contract(): void
+    {
+        $nonnegative = ['required', 'string', new DecimalAmountRule(maxWholeDigits: 13)];
+        $positive = ['required', 'string', new DecimalAmountRule(positive: true, maxWholeDigits: 13)];
+
+        foreach (['0', '0.00', '0000000000000', '9999999999999.99'] as $value) {
+            $this->assertTrue(Validator::make(['amount' => $value], ['amount' => $nonnegative])->passes(), $value);
+        }
+        foreach (['1', '1.2', '1.23', '9999999999999.99'] as $value) {
+            $this->assertTrue(Validator::make(['amount' => $value], ['amount' => $positive])->passes(), $value);
+        }
+        foreach (['0', '0.00', '00000000000000', '00000000000001.00'] as $value) {
+            $this->assertTrue(Validator::make(['amount' => $value], ['amount' => $positive])->fails(), $value);
+        }
+        $this->assertTrue(Validator::make(['amount' => '00000000000001.00'], ['amount' => $nonnegative])->fails());
+        $this->assertTrue(Validator::make(['amount' => 1.2], ['amount' => $positive])->fails());
+    }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\DecimalAmountRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -17,7 +18,7 @@ class StoreAccountRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::in(['cash', 'bank', 'wallet'])],
-            'balance' => ['required', 'numeric', 'min:0', 'max:9999999999999.99', 'regex:/^\d{1,13}(\.\d{1,2})?$/D'],
+            'balance' => ['bail', 'required', 'string', new DecimalAmountRule('The balance field must be an exact non-negative decimal string within DECIMAL(15,2).', maxWholeDigits: 13)],
             'currency' => ['sometimes', 'required', 'string', 'regex:/^[A-Z]{3}$/D'],
         ];
     }
