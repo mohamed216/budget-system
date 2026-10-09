@@ -60,7 +60,7 @@ class AccountingSchemaTest extends TestCase
                 'id' => ['bigint unsigned', false, null], 'user_id' => ['bigint unsigned', false, null],
                 'parent_id' => ['bigint unsigned', true, null], 'code' => ['varchar(32)', false, null],
                 'name' => ['varchar(255)', false, null], 'type' => ['varchar(16)', false, null],
-                'is_active' => ['tinyint(1)', false, '1'],
+                'is_active' => ['tinyint(1)', false, '1'], 'cash_role' => ['varchar(16)', true, null],
             ],
             'journal_entries' => [
                 'id' => ['bigint unsigned', false, null], 'user_id' => ['bigint unsigned', false, null],
@@ -103,7 +103,7 @@ class AccountingSchemaTest extends TestCase
         $indexes = [
             'chart_of_accounts' => ['coa_owner_code_unique' => [['user_id', 'code'], true], 'coa_id_owner_unique' => [['id', 'user_id'], true], 'coa_parent_owner_index' => [['parent_id', 'user_id'], false], 'coa_owner_type_active_index' => [['user_id', 'type', 'is_active', 'id'], false]],
             'journal_entries' => ['je_id_owner_unique' => [['id', 'user_id'], true], 'je_owner_status_date_index' => [['user_id', 'status', 'entry_date', 'id'], false], 'je_reversal_of_unique' => [['reversal_of_id'], true], 'je_reversal_owner_index' => [['reversal_of_id', 'user_id'], false]],
-            'journal_lines' => ['jl_entry_number_unique' => [['journal_entry_id', 'line_number'], true], 'jl_entry_owner_index' => [['journal_entry_id', 'user_id'], false], 'jl_account_owner_index' => [['chart_account_id', 'user_id'], false]],
+            'journal_lines' => ['jl_entry_number_unique' => [['journal_entry_id', 'line_number'], true], 'jl_entry_owner_index' => [['journal_entry_id', 'user_id'], false], 'jl_account_owner_index' => [['chart_account_id', 'user_id'], false], 'jl_owner_entry_id_unique' => [['user_id', 'journal_entry_id', 'id'], true]],
         ];
         $foreignKeys = [
             'chart_of_accounts' => ['coa_user_fk' => [['user_id'], 'users', ['id']], 'coa_parent_owner_fk' => [['parent_id', 'user_id'], 'chart_of_accounts', ['id', 'user_id']]],

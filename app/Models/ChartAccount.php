@@ -13,7 +13,7 @@ class ChartAccount extends Model
 
     protected $table = 'chart_of_accounts';
 
-    protected $fillable = ['parent_id', 'code', 'name', 'type', 'is_active'];
+    protected $fillable = ['parent_id', 'code', 'name', 'type', 'is_active', 'cash_role'];
 
     protected $casts = ['is_active' => 'boolean'];
 
