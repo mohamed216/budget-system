@@ -7,6 +7,7 @@ namespace App\Accounting\Actions;
 use App\Accounting\AccountingPeriodLocks;
 use App\Accounting\DecimalAmount;
 use App\Accounting\Exceptions\AccountingConflict;
+use App\Accounting\Exceptions\AccountingConflictReason;
 use App\Accounting\PeriodGuard;
 use App\Models\ChartAccount;
 use App\Models\JournalEntry;
@@ -66,7 +67,8 @@ final class SaveJournalDraft
                     throw new AccountingConflict('Posted journal cannot be modified.');
                 }
                 if ($version !== $journal->version) {
-                    throw new AccountingConflict('Stale journal version: reload the draft before saving.');
+                    throw new AccountingConflict('Stale journal version: reload the draft before saving.',
+                        reason: AccountingConflictReason::JournalDraftStale);
                 }
             }
             $journal->lines()->lockForUpdate()->get();

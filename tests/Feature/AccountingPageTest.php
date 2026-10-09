@@ -264,9 +264,11 @@ class AccountingPageTest extends TestCase
         $child = $this->account('2000');
         $child->update(['parent_id' => $account->id]);
         $this->from(route('accounting-pages.chart.index'))->delete(route('accounting-pages.chart.destroy', $account->id))->assertRedirect()->assertSessionHasErrors('accounting');
-        $this->get(route('accounting-pages.chart.index'))->assertOk()->assertSee('child');
+        $this->get(route('accounting-pages.chart.index'))->assertOk()
+            ->assertSee('تعذر إتمام العملية المحاسبية.')->assertDontSee('Chart account with children');
         $this->from(route('accounting-pages.chart.edit', $account->id))->put(route('accounting-pages.chart.update', $account->id), array_replace($d, ['parent_id' => $child->id]))->assertSessionHasErrors('accounting');
-        $this->get(route('accounting-pages.chart.edit', $account->id))->assertOk()->assertSee('cycle');
+        $this->get(route('accounting-pages.chart.edit', $account->id))->assertOk()
+            ->assertSee('تعذر إتمام العملية المحاسبية.')->assertDontSee('Chart hierarchy cycle');
         $this->delete(route('accounting-pages.chart.destroy', $child->id))->assertRedirect();
         $this->delete(route('accounting-pages.chart.destroy', $account->id))->assertRedirect();
         $this->assertDatabaseMissing('chart_of_accounts', ['id' => $account->id]);
@@ -317,10 +319,12 @@ class AccountingPageTest extends TestCase
         $journal = $this->draft();
         $edit = route('accounting-pages.journals.edit', $journal->id);
         $this->actingAs($this->owner)->from($edit)->put(route('accounting-pages.journals.update', $journal->id), $this->data(overrides: ['version' => 99, 'description' => 'Unsaved input']))->assertRedirect($edit)->assertSessionHasErrors('accounting');
-        $this->get($edit)->assertOk()->assertSee('Stale journal version')->assertSee('Unsaved input')->assertSee('value="99"', false);
+        $this->get($edit)->assertOk()->assertSee('تغيرت نسخة مسودة القيد. أعد تحميلها قبل الحفظ.')
+            ->assertDontSee('Stale journal version')->assertSee('Unsaved input')->assertSee('value="99"', false);
         $show = route('accounting-pages.journals.show', $journal->id);
         $this->from($show)->post(route('accounting-pages.journals.post', $journal->id))->assertSessionHasErrors('accounting');
-        $this->get($show)->assertOk()->assertSee('at least two');
+        $this->get($show)->assertOk()->assertSee('تعذر إتمام العملية المحاسبية.')
+            ->assertDontSee('Posting requires at least two');
     }
 
     public function test_posted_detail_is_read_only_and_retry_is_unchanged(): void

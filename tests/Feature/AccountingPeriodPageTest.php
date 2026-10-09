@@ -133,7 +133,8 @@ class AccountingPeriodPageTest extends TestCase
 
         $this->from($index)->post(route('accounting-pages.periods.store'), $this->dates('2026-01-31', '2026-02-28'))
             ->assertRedirect($index)->assertSessionHasErrors('accounting');
-        $this->get($index)->assertOk()->assertSee('2026-02-28')->assertSee('role="alert"', false);
+        $this->get($index)->assertOk()->assertSee('2026-02-28')->assertSee('role="alert"', false)
+            ->assertSee('تتداخل الفترة المحاسبية مع فترة موجودة.')->assertDontSee('Accounting period overlaps');
         $this->from($index)->post(route('accounting-pages.periods.store'), $this->dates('2026-03-31', '2026-03-01'))
             ->assertRedirect($index)->assertSessionHasErrors('end_date');
         $this->get($index)->assertOk()->assertSee('2026-03-31');

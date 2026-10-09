@@ -14,4 +14,8 @@ enum AccountingConflictReason
     case FiscalYearCurrencyMismatch;
     case PostedLedgerCurrencyMismatch;
     case PostedLedgerUnbalanced;
+    case AccountingPeriodOverlap;
+    case AccountingPeriodState;
+    case JournalDraftStale;
+    case JournalReversalIneligible;
 }

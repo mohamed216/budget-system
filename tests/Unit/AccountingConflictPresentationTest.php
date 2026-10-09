@@ -57,6 +57,23 @@ class AccountingConflictPresentationTest extends TestCase
         $this->assertSame('Fiscal year for the accounting date is permanently closed.', $conflict->getMessage());
     }
 
+    public function test_page_mutation_messages_use_reasons_and_unknown_conflicts_have_a_safe_fallback(): void
+    {
+        $presenter = new AccountingConflictPresentation;
+        $raw = 'SQLSTATE[HY000] private English domain detail';
+
+        $this->assertSame('تتداخل الفترة المحاسبية مع فترة موجودة.',
+            $presenter->pageMutation(new AccountingConflict($raw, reason: AccountingConflictReason::AccountingPeriodOverlap)));
+        $this->assertSame('لا يمكن تنفيذ العملية على هذه الفترة المحاسبية في حالتها الحالية.',
+            $presenter->pageMutation(new AccountingConflict($raw, reason: AccountingConflictReason::AccountingPeriodState)));
+        $this->assertSame('تغيرت نسخة مسودة القيد. أعد تحميلها قبل الحفظ.',
+            $presenter->pageMutation(new AccountingConflict($raw, reason: AccountingConflictReason::JournalDraftStale)));
+        $this->assertSame('لا يمكن عكس هذا القيد؛ يجب أن يكون قيداً أصلياً مرحلاً ولم يُعكس من قبل.',
+            $presenter->pageMutation(new AccountingConflict($raw, reason: AccountingConflictReason::JournalReversalIneligible)));
+        $this->assertSame('تعذر إتمام العملية المحاسبية.',
+            $presenter->pageMutation(new AccountingConflict($raw)));
+    }
+
     public function test_ledger_report_conflicts_use_reasons_and_keep_unrelated_reasons_distinct(): void
     {
         $presenter = new AccountingConflictPresentation;

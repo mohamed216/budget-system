@@ -108,6 +108,9 @@ class JournalReversalPageTest extends TestCase
         $draftShow = route('accounting-pages.journals.show', $draft->id);
         $this->from($draftShow)->post(route('accounting-pages.journals.reverse', $draft->id))
             ->assertRedirect($draftShow)->assertSessionHasErrors('accounting');
+        $this->get($draftShow)->assertOk()
+            ->assertSee('لا يمكن عكس هذا القيد؛ يجب أن يكون قيداً أصلياً مرحلاً ولم يُعكس من قبل.')
+            ->assertDontSee('Only an original posted journal');
         $reversal = (new ReverseJournalEntry)->execute($this->owner, $original->id);
         foreach ([$original, $reversal] as $entry) {
             $show = route('accounting-pages.journals.show', $entry->id);

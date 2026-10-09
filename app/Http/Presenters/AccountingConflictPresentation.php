@@ -9,6 +9,17 @@ final class AccountingConflictPresentation
 {
     public const OPENING_BALANCE_POSTED = 'لا يمكن تعديل أرصدة افتتاحية تم ترحيلها.';
 
+    public function pageMutation(AccountingConflict $conflict): string
+    {
+        return match ($conflict->reason) {
+            AccountingConflictReason::AccountingPeriodOverlap => 'تتداخل الفترة المحاسبية مع فترة موجودة.',
+            AccountingConflictReason::AccountingPeriodState => 'لا يمكن تنفيذ العملية على هذه الفترة المحاسبية في حالتها الحالية.',
+            AccountingConflictReason::JournalDraftStale => 'تغيرت نسخة مسودة القيد. أعد تحميلها قبل الحفظ.',
+            AccountingConflictReason::JournalReversalIneligible => 'لا يمكن عكس هذا القيد؛ يجب أن يكون قيداً أصلياً مرحلاً ولم يُعكس من قبل.',
+            default => 'تعذر إتمام العملية المحاسبية.',
+        };
+    }
+
     public function generalLedger(AccountingConflict $conflict): string
     {
         return 'تعذر عرض الأستاذ بسبب اختلاف عملات القيود المرحلة أو عدم توازنها.';

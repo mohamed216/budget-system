@@ -7,6 +7,7 @@ use App\Accounting\Actions\PostJournalEntry;
 use App\Accounting\Actions\ReverseJournalEntry;
 use App\Accounting\Actions\SaveJournalDraft;
 use App\Accounting\Exceptions\AccountingConflict;
+use App\Accounting\Exceptions\AccountingConflictReason;
 use App\Accounting\Queries\OwnedChartAccounts;
 use App\Http\Controllers\Controller;
 use App\Http\Presenters\AccountingPageMutation;
@@ -94,7 +95,7 @@ class JournalPageController extends Controller
         try {
             $saved = $action->execute($request->user(), $d['entry_date'], $d['currency'], $d['lines'], $d['reference'] ?? null, $d['description'] ?? null, $entry?->id, $entry ? (int) $d['version'] : null);
         } catch (AccountingConflict $exception) {
-            return back()->withInput($request->except('_token'))->withErrors(['accounting' => $exception->getMessage()]);
+            return $this->mutation->error($request, $exception);
         }
 
         return redirect()->route('accounting-pages.journals.show', $saved->id)->with('success', 'تم حفظ المسودة.');
@@ -120,11 +121,11 @@ class JournalPageController extends Controller
         $entry = $this->journal($request, $journal, 'view');
         try {
             if (Gate::inspect('reverse', $entry)->denied()) {
-                throw new AccountingConflict('لا يمكن عكس هذا القيد؛ يجب أن يكون قيداً أصلياً مرحلاً ولم يُعكس من قبل.');
+                throw new AccountingConflict(reason: AccountingConflictReason::JournalReversalIneligible);
             }
             $reversal = $action->execute($request->user(), $entry->id);
         } catch (AccountingConflict $exception) {
-            return back()->withInput($request->except('_token'))->withErrors(['accounting' => $exception->getMessage()]);
+            return $this->mutation->error($request, $exception);
         }
 
         return redirect()->route('accounting-pages.journals.show', $reversal->id)

@@ -93,7 +93,7 @@ class AccountingPeriodHttpTest extends TestCase
         $this->actingAs($this->owner);
         $this->postJson('/accounting/periods', $this->dates())->assertCreated();
         $this->postJson('/accounting/periods', $this->dates('2026-01-31', '2026-02-28'))
-            ->assertStatus(409)->assertJsonStructure(['message']);
+            ->assertStatus(409)->assertExactJson(['message' => 'Accounting period overlaps an existing period.']);
         $this->postJson('/accounting/periods', $this->dates('2026-02-02', '2026-02-01'))
             ->assertUnprocessable()->assertJsonValidationErrors('end_date');
         $this->postJson('/accounting/periods', $this->dates('2026-2-01', '2026-02-28'))
@@ -111,7 +111,7 @@ class AccountingPeriodHttpTest extends TestCase
         $second = $this->period($this->owner, '2026-03-01', '2026-03-31');
         $this->actingAs($this->owner);
         $this->putJson('/accounting/periods/'.$first->id, $this->dates('2026-01-01', '2026-03-01'))
-            ->assertStatus(409)->assertJsonStructure(['message']);
+            ->assertStatus(409)->assertExactJson(['message' => 'Accounting period overlaps an existing period.']);
         $this->putJson('/accounting/periods/'.$first->id, $this->dates('2026-01-31', '2026-01-01'))
             ->assertUnprocessable()->assertJsonValidationErrors('end_date');
         $this->putJson('/accounting/periods/'.$first->id, $this->dates() + ['status' => 'closed'])

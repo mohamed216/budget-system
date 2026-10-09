@@ -8,6 +8,7 @@ use App\Accounting\Actions\DeleteAccountingPeriod;
 use App\Accounting\Actions\ReopenAccountingPeriod;
 use App\Accounting\Actions\UpdateAccountingPeriod;
 use App\Accounting\Exceptions\AccountingConflict;
+use App\Accounting\Exceptions\AccountingConflictReason;
 use App\Http\Controllers\Controller;
 use App\Http\Presenters\AccountingPageMutation;
 use App\Http\Requests\Accounting\AccountingPeriodRequest;
@@ -33,7 +34,7 @@ class AccountingPeriodPageController extends Controller
 
         return $this->mutation->handle($request, function () use ($ability, $period, $operation): void {
             if (Gate::inspect($ability, $period)->denied()) {
-                throw new AccountingConflict('لا يمكن تنفيذ العملية على هذه الفترة المحاسبية في حالتها الحالية.');
+                throw new AccountingConflict(reason: AccountingConflictReason::AccountingPeriodState);
             }
             $operation($period);
         }, route('accounting-pages.periods.index'));

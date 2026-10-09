@@ -146,8 +146,9 @@ class AccountingHttpTest extends TestCase
         $child = $this->account('2000');
         $child->update(['parent_id' => $parent->id]);
         $this->actingAs($this->owner)->putJson('/accounting/chart-accounts/'.$parent->id, $this->chartData(['parent_id' => $child->id]))
-            ->assertConflict()->assertJsonStructure(['message']);
-        $this->deleteJson('/accounting/chart-accounts/'.$parent->id)->assertConflict();
+            ->assertConflict()->assertExactJson(['message' => 'Chart hierarchy cycle is not allowed.']);
+        $this->deleteJson('/accounting/chart-accounts/'.$parent->id)->assertConflict()
+            ->assertExactJson(['message' => 'Chart account with children or journal lines cannot be deleted.']);
         $this->draft($this->owner, [$this->line($child)]);
         $this->putJson('/accounting/chart-accounts/'.$child->id, $this->chartData(['code' => 'NEW']))->assertConflict();
         $this->deleteJson('/accounting/chart-accounts/'.$child->id)->assertConflict();
@@ -222,7 +223,7 @@ class AccountingHttpTest extends TestCase
             ->assertOk()->assertJsonPath('data.id', $journal->id)->assertJsonPath('data.version', 2)
             ->assertJsonPath('data.description', 'Updated')->assertJsonPath('data.lines', []);
         $this->putJson('/accounting/journals/'.$journal->id, $this->draftData(changes: ['version' => 1]))
-            ->assertConflict()->assertJsonStructure(['message']);
+            ->assertConflict()->assertExactJson(['message' => 'Stale journal version: reload the draft before saving.']);
         $this->assertSame(2, $journal->fresh()->version);
     }
 
@@ -258,7 +259,8 @@ class AccountingHttpTest extends TestCase
     public function test_empty_post_conflict_and_draft_delete_semantics(): void
     {
         $empty = $this->draft($this->owner);
-        $this->actingAs($this->owner)->postJson('/accounting/journals/'.$empty->id.'/post')->assertConflict();
+        $this->actingAs($this->owner)->postJson('/accounting/journals/'.$empty->id.'/post')->assertConflict()
+            ->assertExactJson(['message' => 'Posting requires at least two journal lines.']);
         $withLines = $this->draft($this->owner, [$this->line($this->account())]);
         $this->deleteJson('/accounting/journals/'.$withLines->id)->assertNoContent();
         $this->assertDatabaseMissing('journal_entries', ['id' => $withLines->id]);

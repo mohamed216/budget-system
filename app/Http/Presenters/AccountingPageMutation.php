@@ -8,12 +8,20 @@ use Illuminate\Http\Request;
 
 class AccountingPageMutation
 {
+    public function __construct(private readonly AccountingConflictPresentation $presentation) {}
+
+    public function error(Request $request, AccountingConflict $exception): RedirectResponse
+    {
+        return back()->withInput($request->except('_token'))
+            ->withErrors(['accounting' => $this->presentation->pageMutation($exception)]);
+    }
+
     public function handle(Request $request, callable $operation, string $destination): RedirectResponse
     {
         try {
             $operation();
         } catch (AccountingConflict $exception) {
-            return back()->withInput($request->except('_token'))->withErrors(['accounting' => $exception->getMessage()]);
+            return $this->error($request, $exception);
         }
 
         return redirect($destination)->with('success', 'تم حفظ العملية بنجاح.');
