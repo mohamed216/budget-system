@@ -9,6 +9,20 @@ final class AccountingConflictPresentation
 {
     public const OPENING_BALANCE_POSTED = 'لا يمكن تعديل أرصدة افتتاحية تم ترحيلها.';
 
+    public function generalLedger(AccountingConflict $conflict): string
+    {
+        return 'تعذر عرض الأستاذ بسبب اختلاف عملات القيود المرحلة أو عدم توازنها.';
+    }
+
+    public function trialBalance(AccountingConflict $conflict): string
+    {
+        return match ($conflict->reason) {
+            AccountingConflictReason::PostedLedgerCurrencyMismatch => 'تعذر عرض ميزان المراجعة بسبب اختلاف عملات القيود المرحلة.',
+            AccountingConflictReason::PostedLedgerUnbalanced => 'تعذر عرض ميزان المراجعة لأن القيود المرحلة غير متوازنة.',
+            default => 'تعذر عرض ميزان المراجعة بسبب تعارض في بيانات التقرير.',
+        };
+    }
+
     public function openingBalanceDraft(AccountingConflict $conflict): string
     {
         return $this->dateLockMessage($conflict) ?? match ($conflict->reason) {

@@ -56,4 +56,19 @@ class AccountingConflictPresentationTest extends TestCase
 
         $this->assertSame('Fiscal year for the accounting date is permanently closed.', $conflict->getMessage());
     }
+
+    public function test_ledger_report_conflicts_use_reasons_and_keep_unrelated_reasons_distinct(): void
+    {
+        $presenter = new AccountingConflictPresentation;
+        $domainText = 'SQLSTATE[HY000] private English detail';
+
+        $this->assertSame('تعذر عرض ميزان المراجعة بسبب اختلاف عملات القيود المرحلة.',
+            $presenter->trialBalance(new AccountingConflict($domainText, reason: AccountingConflictReason::PostedLedgerCurrencyMismatch)));
+        $this->assertSame('تعذر عرض ميزان المراجعة لأن القيود المرحلة غير متوازنة.',
+            $presenter->trialBalance(new AccountingConflict($domainText, reason: AccountingConflictReason::PostedLedgerUnbalanced)));
+        $this->assertSame('تعذر عرض ميزان المراجعة بسبب تعارض في بيانات التقرير.',
+            $presenter->trialBalance(new AccountingConflict($domainText, reason: AccountingConflictReason::AccountingPeriodClosed)));
+        $this->assertSame('تعذر عرض الأستاذ بسبب اختلاف عملات القيود المرحلة أو عدم توازنها.',
+            $presenter->generalLedger(new AccountingConflict($domainText, reason: AccountingConflictReason::PostedLedgerUnbalanced)));
+    }
 }

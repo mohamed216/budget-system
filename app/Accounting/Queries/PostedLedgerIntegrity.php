@@ -3,6 +3,7 @@
 namespace App\Accounting\Queries;
 
 use App\Accounting\Exceptions\AccountingConflict;
+use App\Accounting\Exceptions\AccountingConflictReason;
 use App\Models\User;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -59,7 +60,8 @@ final class PostedLedgerIntegrity
     public function assertBalanced(object $summary): void
     {
         if ((int) $summary->unbalanced_journal_count > 0) {
-            throw new AccountingConflict('Posted ledger is out of balance: an individual journal is unbalanced.');
+            throw new AccountingConflict('Posted ledger is out of balance: an individual journal is unbalanced.',
+                reason: AccountingConflictReason::PostedLedgerUnbalanced);
         }
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Accounting\Queries;
 
 use App\Accounting\Exceptions\AccountingConflict;
+use App\Accounting\Exceptions\AccountingConflictReason;
 use App\Models\ChartAccount;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -57,7 +58,8 @@ final class TrialBalanceQuery
             : ['total_debits' => $first->total_debits, 'total_credits' => $first->total_credits,
                 'total_debit_balances' => $first->total_debit_balances, 'total_credit_balances' => $first->total_credit_balances];
         if ($totals['total_debits'] !== $totals['total_credits'] || $totals['total_debit_balances'] !== $totals['total_credit_balances']) {
-            throw new AccountingConflict('Trial balance is out of balance: posted ledger integrity must be investigated.');
+            throw new AccountingConflict('Trial balance is out of balance: posted ledger integrity must be investigated.',
+                reason: AccountingConflictReason::PostedLedgerUnbalanced);
         }
 
         return [

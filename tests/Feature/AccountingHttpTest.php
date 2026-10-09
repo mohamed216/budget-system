@@ -285,7 +285,8 @@ class AccountingHttpTest extends TestCase
     {
         $journal = $this->draft($this->owner, [$this->line($this->account())]);
         DB::table('journal_entries')->where('id', $journal->id)->update(['status' => 'posted', 'posted_at' => now()]);
-        $this->actingAs($this->owner)->getJson('/accounting/trial-balance')->assertConflict()->assertJsonStructure(['message']);
+        $this->actingAs($this->owner)->getJson('/accounting/trial-balance')->assertConflict()
+            ->assertExactJson(['message' => 'Posted ledger is out of balance: an individual journal is unbalanced.']);
         $this->post('/accounting/journals', [])->assertUnprocessable()->assertHeader('Content-Type', 'application/json');
     }
 
@@ -304,7 +305,8 @@ class AccountingHttpTest extends TestCase
             $this->postJson('/accounting/journals/'.$second->id.'/post')->assertOk();
 
             foreach (['/accounting/general-ledger?chart_account_id='.$account->id, '/accounting/trial-balance'] as $uri) {
-                $this->getJson($uri)->assertConflict()->assertJsonStructure(['message'])
+                $this->getJson($uri)->assertConflict()
+                    ->assertExactJson(['message' => 'Financial report cannot combine journals with different currencies.'])
                     ->assertDontSee('SQLSTATE')->assertDontSee('journal_entries');
             }
         } finally {

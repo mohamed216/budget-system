@@ -30,4 +30,14 @@ class ReportingCurrencyTest extends TestCase
         $this->expectException(AccountingConflict::class);
         ReportingCurrency::resolve(1, null);
     }
+
+    public function test_invalid_summary_is_not_classified_as_mixed_currency(): void
+    {
+        try {
+            ReportingCurrency::resolve(1, null);
+            $this->fail('Invalid summary must fail closed.');
+        } catch (AccountingConflict $conflict) {
+            $this->assertNull($conflict->reason);
+        }
+    }
 }

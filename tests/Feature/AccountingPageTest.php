@@ -359,7 +359,9 @@ class AccountingPageTest extends TestCase
         $this->get(route('accounting-pages.trial'))->assertOk()->assertSee('as of');
         $journal = $this->draft([$this->lines($account)[0]]);
         DB::table('journal_entries')->where('id', $journal->id)->update(['status' => 'posted', 'posted_at' => now()]);
-        $this->get(route('accounting-pages.trial'))->assertStatus(409)->assertSee('out of balance')->assertDontSee('SQLSTATE');
+        $this->get(route('accounting-pages.trial'))->assertStatus(409)
+            ->assertSee('تعذر عرض ميزان المراجعة لأن القيود المرحلة غير متوازنة.')
+            ->assertDontSee('out of balance')->assertDontSee('SQLSTATE');
     }
 
     public function test_ledger_and_trial_pages_reject_mixed_currency_and_ledger_labels_actual_historical_currency(): void
@@ -379,7 +381,8 @@ class AccountingPageTest extends TestCase
             $this->get(route('accounting-pages.ledger', ['chart_account_id' => $account->id]))
                 ->assertStatus(409)->assertSee('اختلاف عملات القيود المرحلة')->assertDontSee('SQLSTATE');
             $this->get(route('accounting-pages.trial'))
-                ->assertStatus(409)->assertSee('تعارض في بيانات القيود المرحلة')->assertDontSee('SQLSTATE');
+                ->assertStatus(409)->assertSee('تعذر عرض ميزان المراجعة بسبب اختلاف عملات القيود المرحلة.')
+                ->assertDontSee('different currencies')->assertDontSee('SQLSTATE');
         } finally {
             config(['accounting.currency' => $configured]);
         }

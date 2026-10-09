@@ -12,4 +12,6 @@ enum AccountingConflictReason
     case FiscalYearDraftOpeningBalances;
     case FiscalYearRetainedEarningsAccount;
     case FiscalYearCurrencyMismatch;
+    case PostedLedgerCurrencyMismatch;
+    case PostedLedgerUnbalanced;
 }
