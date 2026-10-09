@@ -331,6 +331,26 @@ class OpeningBalancePageTest extends TestCase
         $this->assertDatabaseCount('opening_balance_batches', 0);
     }
 
+    public function test_unavailable_accounts_keep_the_arabic_page_message_on_create_and_update(): void
+    {
+        $batch = $this->draft();
+        $index = route('accounting-pages.opening-balances.index');
+        $show = route('accounting-pages.opening-balances.show', $batch->id);
+        $foreign = (new CreateChartAccount)->execute($this->other, '1200', 'Foreign', 'asset');
+        $payload = $this->payload();
+        $payload['lines'][0]['chart_account_id'] = $foreign->id;
+        $this->actingAs($this->owner)->from($index)
+            ->post(route('accounting-pages.opening-balances.store'), $payload)
+            ->assertRedirect($index)->assertSessionHasErrors(['accounting' => 'لا يمكن استخدام حساب غير نشط أو غير متاح.']);
+
+        $this->owner->chartAccounts()->findOrFail($this->assetId)->update(['is_active' => false]);
+        $this->from($show)->put(route('accounting-pages.opening-balances.update', $batch->id), $this->payload())
+            ->assertRedirect($show)->assertSessionHasErrors(['accounting' => 'لا يمكن استخدام حساب غير نشط أو غير متاح.']);
+        $this->assertTrue($batch->fresh()->isDraft());
+        $this->assertSame('100.00', $batch->fresh()->lines->first()->debit);
+        $this->assertDatabaseCount('opening_balance_batches', 1);
+    }
+
     public function test_templates_do_not_perform_client_side_amount_arithmetic(): void
     {
         foreach (['opening-balance-fields.blade.php', 'opening-balance-line.blade.php', 'opening-balances.blade.php', 'opening-balance.blade.php'] as $view) {

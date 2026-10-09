@@ -5,6 +5,7 @@ namespace App\Accounting\Actions;
 use App\Accounting\AccountingPeriodLocks;
 use App\Accounting\Exceptions\AccountingConflict;
 use App\Accounting\Exceptions\AccountingConflictReason;
+use App\Accounting\Exceptions\OpeningBalanceAccountsUnavailable;
 use App\Accounting\OpeningBalanceInput;
 use App\Accounting\OpeningBalanceTotals;
 use App\Accounting\PeriodGuard;
@@ -59,7 +60,7 @@ final class SaveOpeningBalanceDraft
             sort($accountIds, SORT_NUMERIC);
             $accounts = ChartAccount::ownedBy($actor)->whereIn('id', $accountIds)->orderBy('id')->lockForUpdate()->get();
             if ($accounts->count() !== count($accountIds) || $accounts->contains(fn ($account) => ! $account->is_active)) {
-                throw ValidationException::withMessages(['lines' => 'Opening balance accounts must exist, belong to the actor, and be active.']);
+                throw OpeningBalanceAccountsUnavailable::withMessages(['lines' => 'Opening balance accounts must exist, belong to the actor, and be active.']);
             }
 
             if ($batchId === null) {

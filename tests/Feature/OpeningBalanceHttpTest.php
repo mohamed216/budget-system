@@ -186,6 +186,18 @@ class OpeningBalanceHttpTest extends TestCase
         $this->assertDatabaseCount('opening_balance_batches', 0);
     }
 
+    public function test_unavailable_account_keeps_the_exact_json_validation_payload(): void
+    {
+        $foreign = (new CreateChartAccount)->execute($this->other, '1200', 'Foreign', 'asset');
+        $this->actingAs($this->owner);
+        $response = $this->postJson('/accounting/opening-balances', $this->payloadWithLine(0, 'chart_account_id', $foreign->id))
+            ->assertUnprocessable();
+
+        $message = 'Opening balance accounts must exist, belong to the actor, and be active.';
+        $response->assertExactJson(['message' => $message, 'errors' => ['lines' => [$message]]]);
+        $this->assertDatabaseCount('opening_balance_batches', 0);
+    }
+
     public function test_closed_period_create_and_update_return_safe_conflicts(): void
     {
         $batch = $this->draft();
