@@ -76,7 +76,7 @@ class AccountingHttpTest extends TestCase
     public function test_route_set_is_authenticated_and_has_no_independent_line_crud(): void
     {
         $routes = collect(Route::getRoutes())->filter(fn ($route) => str_starts_with($route->getName() ?? '', 'accounting.'));
-        $this->assertCount(30, $routes);
+        $this->assertCount(31, $routes);
         foreach ($routes as $route) {
             $this->assertContains('auth', $route->gatherMiddleware());
             $this->assertContains('web', $route->gatherMiddleware());
