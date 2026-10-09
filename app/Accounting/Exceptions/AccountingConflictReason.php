@@ -26,4 +26,6 @@ enum AccountingConflictReason
     case CashFlowJournalNotPosted;
     case CashFlowSpecialJournal;
     case CashFlowReversalRequiresInheritance;
+    case CashFlowClassificationIncomplete;
+    case CashFlowCorruptData;
 }
