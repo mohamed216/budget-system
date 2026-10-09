@@ -18,4 +18,12 @@ enum AccountingConflictReason
     case AccountingPeriodState;
     case JournalDraftStale;
     case JournalReversalIneligible;
+    case CashRoleFrozen;
+    case CashFlowAlreadyCompleted;
+    case CashFlowUnreviewedAccount;
+    case CashFlowNoCashLines;
+    case CashFlowInvalidAllocation;
+    case CashFlowJournalNotPosted;
+    case CashFlowSpecialJournal;
+    case CashFlowReversalRequiresInheritance;
 }
