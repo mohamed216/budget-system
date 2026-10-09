@@ -3,9 +3,11 @@
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Accounting\AccountingPeriodController;
 use App\Http\Controllers\Accounting\ChartAccountController;
+use App\Http\Controllers\Accounting\CashFlowStatementController;
 use App\Http\Controllers\Accounting\FiscalYearCloseController;
 use App\Http\Controllers\Accounting\Pages\AccountingPeriodPageController;
 use App\Http\Controllers\Accounting\Pages\ChartAccountPageController;
+use App\Http\Controllers\Accounting\Pages\CashFlowStatementPageController;
 use App\Http\Controllers\Accounting\Pages\FinancialStatementPageController;
 use App\Http\Controllers\Accounting\Pages\FiscalYearClosePageController;
 use App\Http\Controllers\Accounting\Pages\LedgerReportPageController;
@@ -68,6 +70,7 @@ Route::middleware('auth')->prefix('accounting')->name('accounting.')->group(func
     Route::get('trial-balance', TrialBalanceController::class)->name('trial-balance');
     Route::get('income-statement', IncomeStatementController::class)->name('income-statement');
     Route::get('balance-sheet', StatementOfFinancialPositionController::class)->name('balance-sheet');
+    Route::get('cash-flow', CashFlowStatementController::class)->name('cash-flow');
 });
 
 Route::middleware('auth')->prefix('accounting/pages')->name('accounting-pages.')->controller(\App\Http\Controllers\Accounting\Pages\JournalPageController::class)->group(function () {
@@ -105,4 +108,5 @@ Route::middleware('auth')->prefix('accounting/pages')->name('accounting-pages.')
     Route::get('trial-balance', [LedgerReportPageController::class, 'trial'])->name('trial');
     Route::get('income-statement', [FinancialStatementPageController::class, 'incomeStatement'])->name('income-statement');
     Route::get('balance-sheet', [FinancialStatementPageController::class, 'balanceSheet'])->name('balance-sheet');
+    Route::get('cash-flow', CashFlowStatementPageController::class)->name('cash-flow');
 });

@@ -36,6 +36,18 @@ final class AccountingConflictPresentation
         };
     }
 
+    public function cashFlowStatement(AccountingConflict $conflict): string
+    {
+        return match ($conflict->reason) {
+            AccountingConflictReason::CashFlowUnreviewedAccount => 'راجع تصنيف جميع الحسابات المستخدمة في القيود المرحلة قبل عرض قائمة التدفقات النقدية.',
+            AccountingConflictReason::CashFlowClassificationIncomplete => 'أكمل توزيع التدفقات النقدية للقيود المرحلة في الفترة المختارة قبل عرض القائمة.',
+            AccountingConflictReason::CashFlowCorruptData => 'تعذر عرض قائمة التدفقات النقدية لوجود بيانات مرحلة غير متسقة. راجع القيود والتوزيعات.',
+            AccountingConflictReason::PostedLedgerCurrencyMismatch => 'تعذر عرض قائمة التدفقات النقدية بسبب اختلاف عملات القيود المرحلة.',
+            AccountingConflictReason::PostedLedgerUnbalanced => 'تعذر عرض قائمة التدفقات النقدية لأن بعض القيود المرحلة غير متوازنة.',
+            default => 'تعذر عرض قائمة التدفقات النقدية بسبب تعارض في بيانات التقرير.',
+        };
+    }
+
     public function openingBalanceDraft(AccountingConflict $conflict): string
     {
         return $this->dateLockMessage($conflict) ?? match ($conflict->reason) {
