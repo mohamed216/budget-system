@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\Accounting;
 
+use App\Accounting\ChartAccountFieldRules;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class ChartAccountRequest extends FormRequest
 {
@@ -24,13 +24,8 @@ class ChartAccountRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
-            'code' => ['required', 'string', 'max:32', 'regex:/^[A-Z0-9._-]+$/D'],
-            'name' => ['required', 'string', 'max:255'],
-            'type' => ['required', Rule::in(['asset', 'liability', 'equity', 'revenue', 'expense'])],
-            'is_active' => ['required', 'boolean'],
-            'parent_id' => ['nullable', 'integer', 'min:1'],
+        return array_merge((new ChartAccountFieldRules)->rules(), [
             'user_id' => ['missing'], 'id' => ['missing'],
-        ];
+        ]);
     }
 }
