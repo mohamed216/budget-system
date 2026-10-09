@@ -16,6 +16,8 @@ final class AccountingConflictPresentation
             AccountingConflictReason::AccountingPeriodState => 'لا يمكن تنفيذ العملية على هذه الفترة المحاسبية في حالتها الحالية.',
             AccountingConflictReason::JournalDraftStale => 'تغيرت نسخة مسودة القيد. أعد تحميلها قبل الحفظ.',
             AccountingConflictReason::JournalReversalIneligible => 'لا يمكن عكس هذا القيد؛ يجب أن يكون قيداً أصلياً مرحلاً ولم يُعكس من قبل.',
+            AccountingConflictReason::CashFlowUnreviewedAccount => 'راجع تصنيف الحسابات النقدية وغير النقدية قبل ترحيل القيد.',
+            AccountingConflictReason::CashFlowInvalidAllocation => 'راجع توزيع السطور النقدية والمبالغ والأنشطة قبل ترحيل القيد.',
             default => 'تعذر إتمام العملية المحاسبية.',
         };
     }

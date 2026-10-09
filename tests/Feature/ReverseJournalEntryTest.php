@@ -32,6 +32,7 @@ class ReverseJournalEntryTest extends TestCase
         parent::setUp();
         $this->owner = User::factory()->create();
         $this->account = (new CreateChartAccount)->execute($this->owner, '1000', 'Cash', 'asset');
+        $this->account->update(['cash_role' => 'non_cash']);
     }
 
     private function line(string $debit, string $credit, ?string $description = 'Original line', ?ChartAccount $account = null): array
@@ -62,6 +63,7 @@ class ReverseJournalEntryTest extends TestCase
     public function test_successful_reversal_copies_every_line_and_preserves_original(): void
     {
         $otherAccount = (new CreateChartAccount)->execute($this->owner, '2000', 'Payable', 'liability');
+        $otherAccount->update(['cash_role' => 'non_cash']);
         $original = $this->posted([
             $this->line('0.01', '0.00', 'First'),
             $this->line('9999999999999.99', '0.00', 'Maximum'),

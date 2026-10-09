@@ -32,7 +32,10 @@ class FiscalYearCloseGuardTest extends TestCase
 
     private function account(User $owner, string $code, string $type): ChartAccount
     {
-        return (new CreateChartAccount)->execute($owner, $code, $code, $type);
+        $account = (new CreateChartAccount)->execute($owner, $code, $code, $type);
+        $account->update(['cash_role' => 'non_cash']);
+
+        return $account;
     }
 
     private function close(User $owner, ChartAccount $retained, string $start = '2026-04-01', string $end = '2027-03-31', ?JournalEntry $journal = null): int

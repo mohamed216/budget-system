@@ -29,6 +29,7 @@ class PostedJournalImmutabilityTest extends TestCase
         parent::setUp();
         $this->owner = User::factory()->create();
         $account = (new CreateChartAccount)->execute($this->owner, '1000', 'Cash', 'asset');
+        $account->update(['cash_role' => 'non_cash']);
         $this->accountId = $account->id;
         $save = new SaveJournalDraft;
         $lines = [

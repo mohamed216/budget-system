@@ -3,6 +3,7 @@
 namespace App\Accounting\Actions;
 
 use App\Accounting\AccountingPeriodLocks;
+use App\Accounting\CashFlowAllocationValidator;
 use App\Accounting\DecimalAmount;
 use App\Accounting\Exceptions\AccountingConflict;
 use App\Accounting\PeriodGuard;
@@ -75,10 +76,20 @@ final class PostJournalEntry
             if (! $totalDebit->isPositive() || ! $totalDebit->equals($totalCredit)) {
                 throw new AccountingConflict('Posting requires equal debit and credit totals with a positive total.');
             }
+            $allocationRows = DB::table('journal_line_allocations')->where('user_id', $actor->id)
+                ->where('journal_entry_id', $journalId)->orderBy('id')->lockForUpdate()->get();
+            $validator = new CashFlowAllocationValidator;
+            $hasCash = $validator->validate($lines, $accounts, $validator->fromPersisted($allocationRows), complete: true);
             $journal->status = 'posted';
             $journal->posted_at = now();
             $journal->version++;
             $journal->save();
+            if ($hasCash) {
+                DB::table('cash_flow_journal_completions')->insert([
+                    'user_id' => $actor->id, 'journal_entry_id' => $journalId,
+                    'completed_at' => now()->format('Y-m-d H:i:s.u'),
+                ]);
+            }
 
             return $journal->setRelation('lines', $lines);
         }, 3);

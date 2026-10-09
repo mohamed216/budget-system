@@ -45,7 +45,10 @@ class FiscalYearClosePageTest extends TestCase
 
     private function account(User $owner, string $code, string $name, string $type): ChartAccount
     {
-        return (new CreateChartAccount)->execute($owner, $code, $name, $type);
+        $account = (new CreateChartAccount)->execute($owner, $code, $name, $type);
+        $account->update(['cash_role' => 'non_cash']);
+
+        return $account;
     }
 
     private function payload(array $changes = []): array

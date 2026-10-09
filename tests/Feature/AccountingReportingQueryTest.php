@@ -40,7 +40,10 @@ class AccountingReportingQueryTest extends TestCase
 
     private function account(string $code, string $type, ?User $actor = null): ChartAccount
     {
-        return (new CreateChartAccount)->execute($actor ?? $this->owner, $code, 'Account '.$code, $type);
+        $account = (new CreateChartAccount)->execute($actor ?? $this->owner, $code, 'Account '.$code, $type);
+        $account->update(['cash_role' => 'non_cash']);
+
+        return $account;
     }
 
     private function line(ChartAccount $account, string $debit, string $credit, ?string $description = 'Line description'): array

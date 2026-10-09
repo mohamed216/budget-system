@@ -3,9 +3,12 @@
 namespace App\Accounting\Actions;
 
 use App\Accounting\AccountingPeriodLocks;
+use App\Accounting\CashFlowAllocationValidator;
 use App\Accounting\DecimalAmount;
 use App\Accounting\Exceptions\AccountingConflict;
+use App\Accounting\Exceptions\AccountingConflictReason;
 use App\Accounting\PeriodGuard;
+use App\Models\ChartAccount;
 use App\Models\JournalEntry;
 use App\Models\JournalLine;
 use App\Models\FiscalYearClose;
@@ -34,6 +37,7 @@ final class ReverseJournalEntry
             if ($original->reversal()->lockForUpdate()->first() !== null) {
                 throw new AccountingConflict('Journal has already been reversed.');
             }
+            $isOpeningBalance = $original->openingBalanceBatch()->exists();
 
             $lines = $original->lines()->lockForUpdate()->get();
             if ($lines->count() < 2) {
@@ -70,6 +74,25 @@ final class ReverseJournalEntry
                 throw new AccountingConflict('Reversal requires equal debit and credit totals with a positive total.');
             }
 
+            $originalAllocations = [];
+            $hasCash = false;
+            if (! $isOpeningBalance) {
+                $accountIds = $lines->pluck('chart_account_id')->unique()->sort()->values()->all();
+                $accounts = ChartAccount::ownedBy($actor)->whereIn('id', $accountIds)
+                    ->orderBy('id')->lockForUpdate()->get();
+                $allocationRows = DB::table('journal_line_allocations')->where('user_id', $actor->id)
+                    ->where('journal_entry_id', $original->id)->orderBy('id')->lockForUpdate()->get();
+                $completion = DB::table('cash_flow_journal_completions')->where('user_id', $actor->id)
+                    ->where('journal_entry_id', $original->id)->lockForUpdate()->first();
+                $validator = new CashFlowAllocationValidator;
+                $originalAllocations = $validator->fromPersisted($allocationRows);
+                $hasCash = $validator->validate($lines, $accounts, $originalAllocations, complete: true);
+                if ($hasCash !== ($completion !== null)) {
+                    throw new AccountingConflict('Original journal cash-flow completion is inconsistent.',
+                        reason: AccountingConflictReason::CashFlowInvalidAllocation);
+                }
+            }
+
             $reversal = new JournalEntry([
                 'entry_date' => $reversalDate,
                 'currency' => $original->currency,
@@ -80,7 +103,8 @@ final class ReverseJournalEntry
             $reversal->reversal_of_id = $original->id;
             $reversal->save();
 
-            foreach ($reversedLines as $fields) {
+            $reversedLineIdsByOriginalId = [];
+            foreach ($reversedLines as $index => $fields) {
                 $line = new JournalLine([
                     'chart_account_id' => $fields['chart_account_id'],
                     'debit' => $fields['debit'],
@@ -90,12 +114,24 @@ final class ReverseJournalEntry
                 $line->user_id = $original->user_id;
                 $line->line_number = $fields['line_number'];
                 $reversal->lines()->save($line);
+                $reversedLineIdsByOriginalId[$lines[$index]->id] = $line->id;
+            }
+
+            if ($hasCash) {
+                (new CopyReversalCashFlowAllocations)->copy($actor, $reversal->id, $originalAllocations,
+                    $reversedLineIdsByOriginalId);
             }
 
             $reversal->status = 'posted';
             $reversal->posted_at = now();
             $reversal->version++;
             $reversal->save();
+            if ($hasCash) {
+                DB::table('cash_flow_journal_completions')->insert([
+                    'user_id' => $actor->id, 'journal_entry_id' => $reversal->id,
+                    'completed_at' => now()->format('Y-m-d H:i:s.u'),
+                ]);
+            }
 
             return $reversal->load('lines');
         }, 3);

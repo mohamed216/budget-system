@@ -7,6 +7,7 @@ use App\Accounting\Actions\PostJournalEntry;
 use App\Accounting\Actions\ReverseJournalEntry;
 use App\Accounting\Actions\SaveJournalDraft;
 use App\Accounting\Exceptions\AccountingConflict;
+use App\Accounting\Queries\DraftJournalAllocations;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Accounting\JournalDraftRequest;
 use App\Models\JournalEntry;
@@ -39,7 +40,7 @@ class JournalEntryController extends Controller
         Gate::authorize('create', JournalEntry::class);
         $data = $request->validated();
         $entry = $action->execute($request->user(), $data['entry_date'], $data['currency'], $data['lines'],
-            $data['reference'] ?? null, $data['description'] ?? null);
+            $data['reference'] ?? null, $data['description'] ?? null, allocations: $data['allocations'] ?? []);
 
         return response()->json(['data' => $this->withLines($entry, $request->user())], 201);
     }
@@ -50,7 +51,8 @@ class JournalEntryController extends Controller
         Gate::authorize('update', $entry);
         $data = $request->validated();
         $entry = $action->execute($request->user(), $data['entry_date'], $data['currency'], $data['lines'],
-            $data['reference'] ?? null, $data['description'] ?? null, $entry->id, (int) $data['version']);
+            $data['reference'] ?? null, $data['description'] ?? null, $entry->id, (int) $data['version'],
+            $data['allocations'] ?? []);
 
         return response()->json(['data' => $this->withLines($entry, $request->user())]);
     }
@@ -87,9 +89,12 @@ class JournalEntryController extends Controller
 
     private function withLines(JournalEntry $entry, User $actor): JournalEntry
     {
-        return $entry->refresh()->load([
+        $entry = $entry->refresh()->load([
             'lines' => fn ($query) => $query->ownedBy($actor),
             'lines.chartAccount' => fn ($query) => $query->ownedBy($actor)->select('id', 'user_id', 'code', 'name', 'type', 'is_active'),
         ]);
+        $entry->setAttribute('allocations', (new DraftJournalAllocations)->forJournal($actor, $entry));
+
+        return $entry;
     }
 }

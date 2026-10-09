@@ -30,6 +30,7 @@ class PostJournalEntryTest extends TestCase
         parent::setUp();
         $this->owner = User::factory()->create();
         $this->account = (new CreateChartAccount)->execute($this->owner, '1000', 'Cash', 'asset');
+        $this->account->update(['cash_role' => 'non_cash']);
     }
 
     private function line(string $debit, string $credit, ?ChartAccount $account = null): array
@@ -163,6 +164,7 @@ class PostJournalEntryTest extends TestCase
     public function test_posting_lock_order_uses_only_distinct_referenced_accounts_in_id_order(): void
     {
         $second = (new CreateChartAccount)->execute($this->owner, '1001', 'Revenue', 'revenue');
+        $second->update(['cash_role' => 'non_cash']);
         $unrelated = (new CreateChartAccount)->execute($this->owner, '1002', 'Unused', 'expense');
         $journal = $this->draft([$this->line('1', '0', $second), $this->line('2', '0'), $this->line('0', '3', $second)]);
         DB::enableQueryLog();
@@ -170,7 +172,7 @@ class PostJournalEntryTest extends TestCase
         try {
             (new PostJournalEntry)->execute($this->owner, $journal->id);
             $locks = array_values(array_filter(DB::getQueryLog(), fn ($q) => str_contains($q['query'], 'for update')));
-            $this->assertCount(6, $locks);
+            $this->assertCount(7, $locks);
             $this->assertStringContainsString('users', $locks[0]['query']);
             $this->assertStringContainsString('accounting_periods', $locks[1]['query']);
             $this->assertStringContainsString('fiscal_year_closes', $locks[2]['query']);
@@ -180,6 +182,9 @@ class PostJournalEntryTest extends TestCase
             $this->assertStringContainsString('order by `id` asc', $locks[5]['query']);
             $this->assertSame([$this->owner->id, $this->account->id, $second->id], $locks[5]['bindings']);
             $this->assertNotContains($unrelated->id, array_slice($locks[5]['bindings'], 1));
+            $this->assertStringContainsString('journal_line_allocations', $locks[6]['query']);
+            $this->assertStringContainsString('order by `id` asc', $locks[6]['query']);
+            $this->assertSame([$this->owner->id, $journal->id], $locks[6]['bindings']);
         } finally {
             DB::disableQueryLog();
             DB::flushQueryLog();

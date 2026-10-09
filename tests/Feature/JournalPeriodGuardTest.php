@@ -26,7 +26,10 @@ class JournalPeriodGuardTest extends TestCase
 
     private function account(User $owner): ChartAccount
     {
-        return (new CreateChartAccount)->execute($owner, '1000', 'Cash', 'asset');
+        $account = (new CreateChartAccount)->execute($owner, '1000', 'Cash', 'asset');
+        $account->update(['cash_role' => 'non_cash']);
+
+        return $account;
     }
 
     private function lines(ChartAccount $account): array
@@ -239,7 +242,7 @@ class JournalPeriodGuardTest extends TestCase
         }
     }
 
-    public function test_reversal_lock_order_is_owner_period_fiscal_year_header_then_lines(): void
+    public function test_reversal_lock_order_is_owner_period_fiscal_year_header_lines_accounts_allocations_completion(): void
     {
         $owner = User::factory()->create();
         $account = $this->account($owner);
@@ -249,14 +252,22 @@ class JournalPeriodGuardTest extends TestCase
         try {
             (new ReverseJournalEntry)->execute($owner, $original->id);
             $locks = array_values(array_filter(DB::getQueryLog(), fn ($q) => str_contains(strtolower($q['query']), 'for update')));
-            $this->assertCount(7, $locks);
+            $this->assertCount(10, $locks);
             $this->assertStringContainsString('users', $locks[0]['query']);
             $this->assertStringContainsString('accounting_periods', $locks[1]['query']);
             $this->assertStringContainsString('fiscal_year_closes', $locks[2]['query']);
             $this->assertStringContainsString('fiscal_year_closes', $locks[3]['query']);
             $this->assertStringContainsString('journal_entries', $locks[4]['query']);
             $this->assertStringContainsString('journal_entries', $locks[5]['query']);
-            $this->assertStringContainsString('journal_lines', $locks[count($locks) - 1]['query']);
+            $this->assertStringContainsString('journal_lines', $locks[6]['query']);
+            $this->assertStringContainsString('chart_of_accounts', $locks[7]['query']);
+            $this->assertStringContainsString('order by `id` asc', $locks[7]['query']);
+            $this->assertSame([$owner->id, $account->id], $locks[7]['bindings']);
+            $this->assertStringContainsString('journal_line_allocations', $locks[8]['query']);
+            $this->assertStringContainsString('order by `id` asc', $locks[8]['query']);
+            $this->assertSame([$owner->id, $original->id], $locks[8]['bindings']);
+            $this->assertStringContainsString('cash_flow_journal_completions', $locks[9]['query']);
+            $this->assertSame([$owner->id, $original->id], $locks[9]['bindings']);
         } finally {
             DB::disableQueryLog();
             DB::flushQueryLog();

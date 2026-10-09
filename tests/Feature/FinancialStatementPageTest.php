@@ -38,7 +38,10 @@ class FinancialStatementPageTest extends TestCase
 
     private function account(string $code, string $type, ?User $owner = null): ChartAccount
     {
-        return (new CreateChartAccount)->execute($owner ?? $this->owner, $code, 'Account '.$code, $type);
+        $account = (new CreateChartAccount)->execute($owner ?? $this->owner, $code, 'Account '.$code, $type);
+        $account->update(['cash_role' => 'non_cash']);
+
+        return $account;
     }
 
     private function line(ChartAccount $account, string $debit, string $credit): array

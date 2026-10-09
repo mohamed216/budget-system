@@ -4,6 +4,7 @@ namespace App\Accounting\Actions;
 
 use App\Accounting\AccountingPeriodLocks;
 use App\Accounting\CashAccountRole;
+use App\Accounting\CashFlowAllocationValidator;
 use App\Accounting\DecimalAmount;
 use App\Accounting\Exceptions\AccountingConflict;
 use App\Accounting\Exceptions\AccountingConflictReason;
@@ -48,7 +49,6 @@ final class CompleteHistoricalCashFlowJournal
                 $this->conflict(AccountingConflictReason::CashFlowInvalidAllocation, 'Posted journal lines or accounts are incomplete.');
             }
 
-            $lineAmounts = [];
             $cashLines = [];
             $debitTotal = DecimalAmount::fromString('0');
             $creditTotal = DecimalAmount::fromString('0');
@@ -68,8 +68,6 @@ final class CompleteHistoricalCashFlowJournal
                 }
                 $debitTotal = $debitTotal->add($debit);
                 $creditTotal = $creditTotal->add($credit);
-                $lineAmounts[$line->id] = ['side' => $debit->isPositive() ? 'debit' : 'credit',
-                    'amount' => $debit->isPositive() ? $debit : $credit, 'cash' => $role->isCash()];
                 if ($role->isCash()) {
                     $cashLines[] = $line->id;
                 }
@@ -92,28 +90,7 @@ final class CompleteHistoricalCashFlowJournal
                 return HistoricalCashFlowCompletionOutcome::NoCashLines;
             }
 
-            $covered = [];
-            foreach ($reviewed as $row) {
-                $debit = $lineAmounts[$row->debitLineId] ?? null;
-                $credit = $lineAmounts[$row->creditLineId] ?? null;
-                if ($debit === null || $credit === null || $row->debitLineId === $row->creditLineId
-                    || $debit['side'] !== 'debit' || $credit['side'] !== 'credit'
-                    || (! $debit['cash'] && ! $credit['cash'])
-                    || (($debit['cash'] xor $credit['cash']) !== ($row->category !== null))) {
-                    $this->conflict(AccountingConflictReason::CashFlowInvalidAllocation, 'Allocation lines or category are invalid.');
-                }
-                foreach ([$row->debitLineId, $row->creditLineId] as $lineId) {
-                    $covered[$lineId] = ($covered[$lineId] ?? DecimalAmount::fromString('0'))->add($row->amount);
-                    if ($covered[$lineId]->compare($lineAmounts[$lineId]['amount']) > 0) {
-                        $this->conflict(AccountingConflictReason::CashFlowInvalidAllocation, 'Allocation exceeds a journal line.');
-                    }
-                }
-            }
-            foreach ($cashLines as $lineId) {
-                if (! isset($covered[$lineId]) || ! $covered[$lineId]->equals($lineAmounts[$lineId]['amount'])) {
-                    $this->conflict(AccountingConflictReason::CashFlowInvalidAllocation, 'Every cash line must be fully allocated.');
-                }
-            }
+            (new CashFlowAllocationValidator)->validate($lines, $accounts, $reviewed, complete: true);
 
             if ($existing->isNotEmpty()) {
                 $submitted = array_map(fn ($row) => implode('|', [

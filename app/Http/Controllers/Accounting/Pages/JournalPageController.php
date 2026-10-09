@@ -9,6 +9,7 @@ use App\Accounting\Actions\SaveJournalDraft;
 use App\Accounting\Exceptions\AccountingConflict;
 use App\Accounting\Exceptions\AccountingConflictReason;
 use App\Accounting\Queries\OwnedChartAccounts;
+use App\Accounting\Queries\DraftJournalAllocations;
 use App\Http\Controllers\Controller;
 use App\Http\Presenters\AccountingPageMutation;
 use App\Http\Requests\Accounting\JournalPageRequest;
@@ -54,14 +55,16 @@ class JournalPageController extends Controller
     {
         Gate::authorize('create', JournalEntry::class);
 
-        return view('accounting.draft', ['journal' => null, 'accounts' => $this->accounts($request)]);
+        return view('accounting.draft', ['journal' => null, 'accounts' => $this->accounts($request), 'allocationRows' => []]);
     }
 
     public function journalEdit(Request $request, string $journal)
     {
         $entry = $this->journal($request, $journal, 'update');
+        $entry->load(['lines' => fn ($query) => $query->ownedBy($request->user())]);
 
-        return view('accounting.draft', ['journal' => $entry->load('lines'), 'accounts' => $this->accounts($request)]);
+        return view('accounting.draft', ['journal' => $entry, 'accounts' => $this->accounts($request),
+            'allocationRows' => (new DraftJournalAllocations)->forJournal($request->user(), $entry)]);
     }
 
     public function journalShow(Request $request, string $journal)
@@ -93,7 +96,7 @@ class JournalPageController extends Controller
     {
         $d = $request->validated();
         try {
-            $saved = $action->execute($request->user(), $d['entry_date'], $d['currency'], $d['lines'], $d['reference'] ?? null, $d['description'] ?? null, $entry?->id, $entry ? (int) $d['version'] : null);
+            $saved = $action->execute($request->user(), $d['entry_date'], $d['currency'], $d['lines'], $d['reference'] ?? null, $d['description'] ?? null, $entry?->id, $entry ? (int) $d['version'] : null, $d['allocations'] ?? []);
         } catch (AccountingConflict $exception) {
             return $this->mutation->error($request, $exception);
         }

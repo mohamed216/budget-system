@@ -26,6 +26,7 @@ class JournalReversalPageTest extends TestCase
         $this->owner = User::factory()->create();
         $this->foreign = User::factory()->create();
         $this->account = (new CreateChartAccount)->execute($this->owner, '1000', 'Cash', 'asset');
+        $this->account->update(['cash_role' => 'non_cash']);
     }
 
     private function draft(?User $actor = null, ?ChartAccount $account = null): JournalEntry
@@ -123,6 +124,7 @@ class JournalReversalPageTest extends TestCase
     public function test_guest_and_foreign_user_cannot_access_reversal_page_or_post(): void
     {
         $foreignAccount = (new CreateChartAccount)->execute($this->foreign, '1000', 'Foreign', 'asset');
+        $foreignAccount->update(['cash_role' => 'non_cash']);
         $foreignJournal = $this->posted($this->foreign, $foreignAccount);
         $url = route('accounting-pages.journals.reverse', $foreignJournal->id);
 

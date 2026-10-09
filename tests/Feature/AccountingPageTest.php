@@ -38,7 +38,10 @@ class AccountingPageTest extends TestCase
 
     private function account(string $code = '1000', ?User $user = null): ChartAccount
     {
-        return (new CreateChartAccount)->execute($user ?? $this->owner, $code, 'Account '.$code, 'asset');
+        $account = (new CreateChartAccount)->execute($user ?? $this->owner, $code, 'Account '.$code, 'asset');
+        $account->update(['cash_role' => 'non_cash']);
+
+        return $account;
     }
 
     private function data(array $lines = [], array $overrides = []): array

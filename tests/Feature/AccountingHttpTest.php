@@ -30,7 +30,10 @@ class AccountingHttpTest extends TestCase
 
     private function account(string $code = '1000', ?User $actor = null): ChartAccount
     {
-        return (new CreateChartAccount)->execute($actor ?? $this->owner, $code, 'Account '.$code, 'asset');
+        $account = (new CreateChartAccount)->execute($actor ?? $this->owner, $code, 'Account '.$code, 'asset');
+        $account->update(['cash_role' => 'non_cash']);
+
+        return $account;
     }
 
     private function chartData(array $changes = []): array

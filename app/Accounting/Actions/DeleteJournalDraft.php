@@ -19,6 +19,10 @@ final class DeleteJournalDraft
                 throw new AccountingConflict('Posted journal cannot be deleted.');
             }
             $journal->lines()->lockForUpdate()->get();
+            $allocations = DB::table('journal_line_allocations')->where('user_id', $actor->id)
+                ->where('journal_entry_id', $journalId);
+            $allocations->orderBy('id')->lockForUpdate()->get();
+            $allocations->delete();
             $journal->lines()->delete();
             $journal->delete();
         }, 3);

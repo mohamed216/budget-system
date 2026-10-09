@@ -28,6 +28,7 @@ class JournalReversalHttpTest extends TestCase
         parent::setUp();
         $this->owner = User::factory()->create();
         $this->account = (new CreateChartAccount)->execute($this->owner, '1000', 'Cash', 'asset');
+        $this->account->update(['cash_role' => 'non_cash']);
     }
 
     private function draft(): JournalEntry

@@ -254,7 +254,7 @@ class AccountingActionTest extends TestCase
         $this->assertDatabaseMissing('journal_lines', ['journal_entry_id' => $journal->id]);
     }
 
-    public function test_delete_draft_locks_owner_then_header_then_lines_without_period_guard(): void
+    public function test_delete_draft_locks_owner_then_header_lines_and_allocations_without_period_guard(): void
     {
         $journal = $this->draft([$this->line($this->account())]);
         DB::enableQueryLog();
@@ -262,12 +262,15 @@ class AccountingActionTest extends TestCase
         try {
             (new DeleteJournalDraft)->execute($this->owner, $journal->id);
             $locks = array_values(array_filter(DB::getQueryLog(), fn ($query) => str_contains(strtolower($query['query']), 'for update')));
-            $this->assertCount(3, $locks);
+            $this->assertCount(4, $locks);
             $this->assertStringContainsString('users', $locks[0]['query']);
             $this->assertSame([$this->owner->id], $locks[0]['bindings']);
             $this->assertStringContainsString('journal_entries', $locks[1]['query']);
             $this->assertSame([$this->owner->id, $journal->id], $locks[1]['bindings']);
             $this->assertStringContainsString('journal_lines', $locks[2]['query']);
+            $this->assertStringContainsString('journal_line_allocations', $locks[3]['query']);
+            $this->assertStringContainsString('order by `id` asc', $locks[3]['query']);
+            $this->assertSame([$this->owner->id, $journal->id], $locks[3]['bindings']);
         } finally {
             DB::disableQueryLog();
             DB::flushQueryLog();
@@ -347,7 +350,7 @@ class AccountingActionTest extends TestCase
         $this->assertSame(['actor', 'code', 'name', 'type', 'isActive', 'parentId'], array_map(fn ($p) => $p->getName(), (new \ReflectionMethod(CreateChartAccount::class, 'execute'))->getParameters()));
     }
 
-    public function test_locking_sql_orders_owner_period_fiscal_year_header_lines_then_distinct_chart_accounts(): void
+    public function test_locking_sql_orders_owner_period_fiscal_year_header_lines_accounts_then_allocations(): void
     {
         $first = $this->account();
         $second = $this->account('1001');
@@ -357,7 +360,7 @@ class AccountingActionTest extends TestCase
         try {
             (new SaveJournalDraft)->execute($this->owner, '2026-10-06', config('accounting.currency'), [$this->line($second), $this->line($first), $this->line($second)], journalId: $journal->id, version: 1);
             $locks = array_values(array_filter(DB::getQueryLog(), fn ($q) => str_contains($q['query'], 'for update')));
-            $this->assertCount(6, $locks);
+            $this->assertCount(7, $locks);
             $this->assertStringContainsString('users', $locks[0]['query']);
             $this->assertStringContainsString('accounting_periods', $locks[1]['query']);
             $this->assertStringContainsString('fiscal_year_closes', $locks[2]['query']);
@@ -366,6 +369,9 @@ class AccountingActionTest extends TestCase
             $this->assertStringContainsString('chart_of_accounts', $locks[5]['query']);
             $this->assertStringContainsString('order by `id` asc', $locks[5]['query']);
             $this->assertSame([$this->owner->id, $first->id, $second->id], $locks[5]['bindings']);
+            $this->assertStringContainsString('journal_line_allocations', $locks[6]['query']);
+            $this->assertStringContainsString('order by `id` asc', $locks[6]['query']);
+            $this->assertSame([$this->owner->id, $journal->id], $locks[6]['bindings']);
             DB::flushQueryLog();
             $this->update($first, ['name' => 'Renamed']);
             $locks = array_values(array_filter(DB::getQueryLog(), fn ($q) => str_contains($q['query'], 'for update')));

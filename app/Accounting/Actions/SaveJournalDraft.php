@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Accounting\Actions;
 
 use App\Accounting\AccountingPeriodLocks;
+use App\Accounting\CashFlowAllocationValidator;
 use App\Accounting\DecimalAmount;
+use App\Accounting\DraftCashFlowAllocationInput;
 use App\Accounting\Exceptions\AccountingConflict;
 use App\Accounting\Exceptions\AccountingConflictReason;
 use App\Accounting\PeriodGuard;
@@ -20,7 +22,7 @@ use Illuminate\Validation\ValidationException;
 final class SaveJournalDraft
 {
     /** Lines accept only chart_account_id, debit, credit, and description. */
-    public function execute(User $actor, string $entryDate, string $currency, array $lines, ?string $reference = null, ?string $description = null, ?int $journalId = null, ?int $version = null): JournalEntry
+    public function execute(User $actor, string $entryDate, string $currency, array $lines, ?string $reference = null, ?string $description = null, ?int $journalId = null, ?int $version = null, array $allocations = []): JournalEntry
     {
         $fields = Validator::make([
             'entry_date' => $entryDate, 'currency' => $currency, 'reference' => $reference, 'description' => $description,
@@ -49,7 +51,15 @@ final class SaveJournalDraft
                 'credit' => $credit->toDecimal(), 'description' => $line['description'] ?? null];
         }
 
-        return DB::transaction(function () use ($actor, $journalId, $version, $fields, $normalized) {
+        if (! array_is_list($allocations)) {
+            throw ValidationException::withMessages(['allocations' => 'Allocations must be an ordered list.']);
+        }
+        $draftAllocations = [];
+        foreach ($allocations as $index => $allocation) {
+            $draftAllocations[] = DraftCashFlowAllocationInput::fromArray($allocation, $index);
+        }
+
+        return DB::transaction(function () use ($actor, $journalId, $version, $fields, $normalized, $draftAllocations) {
             AccountingPeriodLocks::owner($actor);
             if ($journalId !== null) {
                 // Preserve foreign/missing 404s before the period check, without taking a journal lock.
@@ -78,17 +88,37 @@ final class SaveJournalDraft
             if ($accounts->count() !== count($ids) || $accounts->contains(fn ($account) => ! $account->is_active)) {
                 throw ValidationException::withMessages(['lines' => 'All chart accounts must exist, belong to the actor, and be active.']);
             }
+            $journalAllocations = DB::table('journal_line_allocations')->where('user_id', $actor->id)
+                ->where('journal_entry_id', $journal->id);
+            $journalAllocations->orderBy('id')->lockForUpdate()->get();
             if ($journalId !== null) {
+                $journalAllocations->delete();
                 $journal->lines()->delete();
                 $journal->fill($fields);
                 $journal->version++;
                 $journal->save();
             }
+            $savedLines = [];
             foreach ($normalized as $index => $fields) {
                 $line = new JournalLine($fields);
                 $line->user_id = $actor->getKey();
                 $line->line_number = $index + 1;
                 $journal->lines()->save($line);
+                $savedLines[] = $line;
+            }
+
+            $resolved = [];
+            foreach ($draftAllocations as $index => $allocation) {
+                $resolved[] = $allocation->forSavedLines($savedLines, $index);
+            }
+            (new CashFlowAllocationValidator)->validate((new JournalLine)->newCollection($savedLines), $accounts,
+                $resolved, complete: false);
+            foreach ($resolved as $allocation) {
+                DB::table('journal_line_allocations')->insert([
+                    'user_id' => $actor->id, 'journal_entry_id' => $journal->id,
+                    'debit_line_id' => $allocation->debitLineId, 'credit_line_id' => $allocation->creditLineId,
+                    'amount' => $allocation->amount->toDecimal(), 'category' => $allocation->category?->value,
+                ]);
             }
 
             return $journal->load('lines');
