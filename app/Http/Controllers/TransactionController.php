@@ -7,19 +7,19 @@ use App\Http\Requests\StoreTransactionRequest;
 use App\Http\Requests\TransactionIndexRequest;
 use App\Models\Account;
 use App\Models\Category;
-use App\Models\Transaction;
+use App\Queries\LegacyPageRelations;
+use App\Queries\LegacyRelationIntegrity;
 
 class TransactionController extends Controller
 {
-    public function index(TransactionIndexRequest $request)
+    public function index(TransactionIndexRequest $request, LegacyPageRelations $relations)
     {
         $filters = $request->validated();
-        $transactions = Transaction::ownedBy($request->user())->with(['account', 'category'])
-            ->when($filters['type'] ?? null, fn ($q, $t) => $q->where('type', $t))
-            ->when($filters['month'] ?? null, fn ($q, $m) => $q->whereMonth('date', $m))
-            ->when($filters['year'] ?? null, fn ($q, $y) => $q->whereYear('date', $y))
-            ->orderByDesc('date')
-            ->get();
+        try {
+            $transactions = $relations->transactions($request->user(), $filters);
+        } catch (LegacyRelationIntegrity) {
+            return response()->view('errors.legacy-relation-integrity', [], 409);
+        }
 
         $accounts = Account::ownedBy($request->user())->get();
         $categories = Category::ownedBy($request->user())->get();

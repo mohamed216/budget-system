@@ -6,14 +6,20 @@ use App\Actions\SaveBudget;
 use App\Http\Requests\StoreBudgetRequest;
 use App\Models\Budget;
 use App\Models\Category;
+use App\Queries\LegacyPageRelations;
+use App\Queries\LegacyRelationIntegrity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class BudgetController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, LegacyPageRelations $relations)
     {
-        $budgets = Budget::ownedBy($request->user())->with('category')->get();
+        try {
+            $budgets = $relations->budgets($request->user());
+        } catch (LegacyRelationIntegrity) {
+            return response()->view('errors.legacy-relation-integrity', [], 409);
+        }
         $categories = Category::ownedBy($request->user())->where('type', 'expense')->get();
 
         return view('budgets.index', compact('budgets', 'categories'));
