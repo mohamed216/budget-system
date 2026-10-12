@@ -227,7 +227,12 @@ class FinancialFoundationTest extends TestCase
             $this->actingAs($this->user)->post('/transactions', $this->transactionData(['amount' => '0.10']))->assertRedirect('/transactions');
             $this->post('/transactions', $this->transactionData(['amount' => '0.20']))->assertRedirect('/transactions');
             $locks = collect(DB::getQueryLog())->filter(fn ($query) => str_contains(strtolower($query['query']), 'for update'));
-            $this->assertCount(4, $locks);
+            $this->assertCount(8, $locks);
+            foreach ($locks->values()->chunk(4) as $createLocks) {
+                foreach (['users', 'accounts', 'categories', 'operational_accounting_integrations'] as $index => $table) {
+                    $this->assertStringContainsString('`'.$table.'`', $createLocks->values()[$index]['query']);
+                }
+            }
             $this->assertSame('100.30', $this->account->fresh()->balance);
         } finally {
             DB::disableQueryLog();
