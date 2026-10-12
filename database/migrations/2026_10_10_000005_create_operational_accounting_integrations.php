@@ -20,15 +20,19 @@ CREATE TABLE `operational_accounting_integrations` (
     `user_id` BIGINT UNSIGNED NOT NULL,
     `state` VARCHAR(16) NOT NULL DEFAULT 'legacy',
     `accounting_currency` CHAR(3) NULL,
+    `historical_transaction_strategy` VARCHAR(32) NULL,
     `transaction_high_water_id` BIGINT UNSIGNED NULL,
     `reconciliation_reference` VARCHAR(255) NULL,
     `reconciled_at` DATETIME(6) NULL,
+    `scope_reviewed_at` TIMESTAMP NULL DEFAULT NULL,
     `activated_at` DATETIME(6) NULL,
     `created_at` TIMESTAMP NULL,
     `updated_at` TIMESTAMP NULL,
     PRIMARY KEY (`user_id`),
     CONSTRAINT `oai_state_check` CHECK (CAST(`state` AS BINARY) IN ('legacy', 'reconciling', 'ready', 'active')),
-    CONSTRAINT `oai_active_metadata_check` CHECK (CAST(`state` AS BINARY) <> 'active' OR (`accounting_currency` IS NOT NULL AND `transaction_high_water_id` IS NOT NULL AND `reconciliation_reference` IS NOT NULL AND `reconciled_at` IS NOT NULL AND `activated_at` IS NOT NULL)),
+    CONSTRAINT `oai_strategy_check` CHECK (`historical_transaction_strategy` IS NULL OR CAST(`historical_transaction_strategy` AS BINARY) IN ('historical_backfill', 'balance_only')),
+    CONSTRAINT `oai_ready_metadata_check` CHECK (CAST(`state` AS BINARY) NOT IN ('ready', 'active') OR (`historical_transaction_strategy` IS NOT NULL AND `transaction_high_water_id` IS NOT NULL AND `reconciliation_reference` IS NOT NULL AND `reconciled_at` IS NOT NULL AND `scope_reviewed_at` IS NOT NULL)),
+    CONSTRAINT `oai_active_metadata_check` CHECK (CAST(`state` AS BINARY) <> 'active' OR (`accounting_currency` IS NOT NULL AND `activated_at` IS NOT NULL)),
     CONSTRAINT `oai_owner_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 SQL);

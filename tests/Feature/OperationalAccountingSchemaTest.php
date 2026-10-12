@@ -108,10 +108,20 @@ class OperationalAccountingSchemaTest extends TestCase
             ],
             'operational_accounting_integrations' => [
                 'user_id' => ['bigint unsigned', false], 'state' => ['varchar(16)', false],
-                'accounting_currency' => ['char(3)', true], 'transaction_high_water_id' => ['bigint unsigned', true],
+                'accounting_currency' => ['char(3)', true], 'historical_transaction_strategy' => ['varchar(32)', true],
+                'transaction_high_water_id' => ['bigint unsigned', true],
                 'reconciliation_reference' => ['varchar(255)', true], 'reconciled_at' => ['datetime(6)', true],
+                'scope_reviewed_at' => ['timestamp', true],
                 'activated_at' => ['datetime(6)', true], 'created_at' => ['timestamp', true],
                 'updated_at' => ['timestamp', true],
+            ],
+            'operational_accounting_account_scope' => [
+                'account_id' => ['bigint unsigned', false], 'user_id' => ['bigint unsigned', false],
+                'created_at' => ['timestamp', true], 'updated_at' => ['timestamp', true],
+            ],
+            'operational_accounting_category_scope' => [
+                'category_id' => ['bigint unsigned', false], 'user_id' => ['bigint unsigned', false],
+                'created_at' => ['timestamp', true], 'updated_at' => ['timestamp', true],
             ],
         ];
         foreach ($columns as $table => $expected) {
@@ -133,6 +143,8 @@ class OperationalAccountingSchemaTest extends TestCase
             'chart_of_accounts' => ['id', 'user_id'],
             'operational_account_mappings' => ['account_id', 'user_id'],
             'operational_category_mappings' => ['category_id', 'user_id'],
+            'operational_accounting_account_scope' => ['account_id', 'user_id'],
+            'operational_accounting_category_scope' => ['category_id', 'user_id'],
         ];
         foreach ($indexes as $table => $key) {
             $matches = collect(Schema::getIndexes($table))->filter(fn (array $index) => $index['unique'] && $index['columns'] === $key);
@@ -141,6 +153,8 @@ class OperationalAccountingSchemaTest extends TestCase
         $this->assertSame(['transaction_id'], collect(Schema::getIndexes('operational_transaction_journals'))->firstWhere('name', 'primary')['columns']);
         $this->assertSame(['journal_entry_id'], collect(Schema::getIndexes('operational_transaction_journals'))->firstWhere('name', 'otj_journal_unique')['columns']);
         $this->assertSame(['user_id'], collect(Schema::getIndexes('operational_accounting_integrations'))->firstWhere('name', 'primary')['columns']);
+        $this->assertSame(['account_id'], collect(Schema::getIndexes('operational_accounting_account_scope'))->firstWhere('name', 'primary')['columns']);
+        $this->assertSame(['category_id'], collect(Schema::getIndexes('operational_accounting_category_scope'))->firstWhere('name', 'primary')['columns']);
 
         $foreignKeys = [
             'operational_account_mappings' => [
@@ -160,6 +174,14 @@ class OperationalAccountingSchemaTest extends TestCase
             ],
             'operational_accounting_integrations' => [
                 'oai_owner_fk' => [['user_id'], 'users', ['id']],
+            ],
+            'operational_accounting_account_scope' => [
+                'oaas_account_owner_fk' => [['account_id', 'user_id'], 'accounts', ['id', 'user_id']],
+                'oaas_owner_fk' => [['user_id'], 'users', ['id']],
+            ],
+            'operational_accounting_category_scope' => [
+                'oacs_category_owner_fk' => [['category_id', 'user_id'], 'categories', ['id', 'user_id']],
+                'oacs_owner_fk' => [['user_id'], 'users', ['id']],
             ],
         ];
         foreach ($foreignKeys as $table => $expected) {
@@ -197,15 +219,107 @@ class OperationalAccountingSchemaTest extends TestCase
         DB::table('operational_accounting_integrations')->insert(['user_id' => $owner->id]);
         $this->assertSame('legacy', DB::table('operational_accounting_integrations')->where('user_id', $owner->id)->value('state'));
         foreach (['reconciling', 'ready', 'active'] as $state) {
+            if ($state === 'ready') {
+                $this->rejects(fn () => DB::table('operational_accounting_integrations')->where('user_id', $owner->id)->update(['state' => 'ready']), [3819]);
+                DB::table('operational_accounting_integrations')->where('user_id', $owner->id)->update([
+                    'historical_transaction_strategy' => 'historical_backfill', 'transaction_high_water_id' => 1,
+                    'reconciliation_reference' => 'reviewed', 'reconciled_at' => now(), 'scope_reviewed_at' => now(),
+                ]);
+            }
             if ($state === 'active') {
                 $this->rejects(fn () => DB::table('operational_accounting_integrations')->where('user_id', $owner->id)->update(['state' => 'active']), [3819]);
                 DB::table('operational_accounting_integrations')->where('user_id', $owner->id)->update([
-                    'accounting_currency' => config('accounting.currency'), 'transaction_high_water_id' => 1,
-                    'reconciliation_reference' => 'reviewed', 'reconciled_at' => now(), 'activated_at' => now(),
+                    'accounting_currency' => config('accounting.currency'), 'activated_at' => now(),
                 ]);
             }
             DB::table('operational_accounting_integrations')->where('user_id', $owner->id)->update(['state' => $state]);
         }
+    }
+
+    public function test_historical_strategy_and_ready_active_metadata_constraints(): void
+    {
+        $owner = User::factory()->create();
+        $integrations = DB::table('operational_accounting_integrations')->where('user_id', $owner->id);
+        foreach (['legacy', 'reconciling'] as $state) {
+            DB::table('operational_accounting_integrations')->insert([
+                'user_id' => $owner->id, 'state' => $state,
+            ]);
+            $this->assertNull($integrations->value('historical_transaction_strategy'));
+            $this->assertNull($integrations->value('scope_reviewed_at'));
+            foreach (['historical_backfill', 'balance_only'] as $strategy) {
+                $integrations->update(['historical_transaction_strategy' => $strategy]);
+                $this->assertSame($strategy, $integrations->value('historical_transaction_strategy'));
+            }
+            foreach (['invalid', '', 'HISTORICAL_BACKFILL', 'BALANCE_ONLY', 'balance_only '] as $strategy) {
+                $this->rejects(fn () => $integrations->update(['historical_transaction_strategy' => $strategy]), [3819]);
+            }
+            $integrations->update(['historical_transaction_strategy' => null]);
+            $this->assertNull($integrations->value('historical_transaction_strategy'));
+            $integrations->delete();
+        }
+
+        foreach (['historical_backfill', 'balance_only'] as $strategy) {
+            foreach (['ready', 'active'] as $state) {
+                $metadata = [
+                    'user_id' => $owner->id, 'state' => $state,
+                    'historical_transaction_strategy' => $strategy, 'transaction_high_water_id' => 0,
+                    'reconciliation_reference' => 'reviewed-'.$strategy, 'reconciled_at' => now(),
+                    'scope_reviewed_at' => now(),
+                    'accounting_currency' => $state === 'active' ? config('accounting.currency') : null,
+                    'activated_at' => $state === 'active' ? now() : null,
+                ];
+                $required = ['historical_transaction_strategy', 'transaction_high_water_id', 'reconciliation_reference', 'reconciled_at', 'scope_reviewed_at'];
+                if ($state === 'active') {
+                    $required = array_merge($required, ['accounting_currency', 'activated_at']);
+                }
+                foreach ($required as $field) {
+                    $this->rejects(fn () => DB::table('operational_accounting_integrations')->insert(array_replace($metadata, [$field => null])), [3819]);
+                }
+                DB::table('operational_accounting_integrations')->insert($metadata);
+                $this->assertSame($strategy, $integrations->value('historical_transaction_strategy'));
+                $this->assertSame($state, $integrations->value('state'));
+                $this->assertNotNull($integrations->value('scope_reviewed_at'));
+                // Explicit review represents an empty scope without inventing rows.
+                $this->assertDatabaseCount('operational_accounting_account_scope', 0);
+                $this->assertDatabaseCount('operational_accounting_category_scope', 0);
+                foreach ($required as $field) {
+                    $this->rejects(fn () => $integrations->update([$field => null]), [3819]);
+                }
+                $integrations->delete();
+            }
+        }
+    }
+
+    public function test_scope_is_owner_safe_and_allows_selected_unmapped_records(): void
+    {
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
+        // No transactions or mappings: scope alone must protect these parents.
+        $account = DB::table('accounts')->insertGetId([
+            'user_id' => $owner->id, 'name' => 'Selected unmapped account', 'type' => 'bank',
+            'balance' => '0.00', 'currency' => config('accounting.currency'),
+        ]);
+        $category = DB::table('categories')->insertGetId([
+            'user_id' => $owner->id, 'name' => 'Selected unmapped category', 'type' => 'income',
+        ]);
+        foreach ([
+            ['operational_accounting_account_scope', 'account_id', 'accounts', 'operational_account_mappings', $account],
+            ['operational_accounting_category_scope', 'category_id', 'categories', 'operational_category_mappings', $category],
+        ] as [$scope, $key, $parent, $mapping, $id]) {
+            $this->rejects(fn () => DB::table($scope)->insert([$key => $id, 'user_id' => $other->id]), [1452]);
+            $this->rejects(fn () => DB::table($scope)->insert([$key => 999999, 'user_id' => $owner->id]), [1452]);
+            $this->rejects(fn () => DB::table($scope)->insert([$key => $id, 'user_id' => 999999]), [1452]);
+            DB::table($scope)->insert([$key => $id, 'user_id' => $owner->id]);
+            $this->assertDatabaseHas($scope, [$key => $id, 'user_id' => $owner->id]);
+            $this->assertDatabaseMissing($mapping, [$key => $id]);
+            $this->rejects(fn () => DB::table($scope)->insert([$key => $id, 'user_id' => $owner->id]), [1062]);
+            $this->rejects(fn () => DB::table($parent)->where('id', $id)->delete(), [1451]);
+            $this->rejects(fn () => DB::table($parent)->where('id', $id)->update(['user_id' => $other->id]), [1451]);
+            $this->rejects(fn () => DB::table($parent)->where('id', $id)->update(['id' => 999999]), [1451]);
+            $this->rejects(fn () => DB::table($scope)->where($key, $id)->update(['user_id' => $other->id]), [1452]);
+        }
+        $this->rejects(fn () => DB::table('users')->where('id', $owner->id)->delete(), [1451]);
+        $this->assertDatabaseCount('operational_accounting_integrations', 0);
     }
 
     public function test_composite_foreign_keys_reject_cross_owner_rows_and_restrict_parent_changes(): void
@@ -437,5 +551,7 @@ class OperationalAccountingSchemaTest extends TestCase
         $this->assertDatabaseCount('operational_category_mappings', 0);
         $this->assertDatabaseCount('operational_transaction_journals', 0);
         $this->assertDatabaseCount('operational_accounting_integrations', 0);
+        $this->assertDatabaseCount('operational_accounting_account_scope', 0);
+        $this->assertDatabaseCount('operational_accounting_category_scope', 0);
     }
 }
