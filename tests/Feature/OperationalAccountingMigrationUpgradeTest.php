@@ -32,7 +32,8 @@ class OperationalAccountingMigrationUpgradeTest extends TestCase
             'transactions' => (array) DB::table('transactions')->where('id', $transaction)->first(),
         ];
         $migrations = [];
-        for ($number = 1; $number <= 8; $number++) {
+        // Evidence FKs must be rolled back before the original owner reference keys.
+        for ($number = 1; $number <= 14; $number++) {
             $path = glob(database_path(sprintf('migrations/2026_10_10_%06d_*.php', $number)));
             $this->assertCount(1, $path);
             $migrations[$number] = require $path[0];
@@ -50,7 +51,10 @@ class OperationalAccountingMigrationUpgradeTest extends TestCase
             }
             foreach (['operational_account_mappings', 'operational_category_mappings',
                 'operational_transaction_journals', 'operational_accounting_integrations',
-                'operational_accounting_account_scope', 'operational_accounting_category_scope'] as $table) {
+                'operational_accounting_account_scope', 'operational_accounting_category_scope',
+                'operational_reconciliation_reviews', 'operational_reconciliation_charts',
+                'operational_reconciliation_accounts', 'operational_reconciliation_categories',
+                'operational_reconciliation_journals', 'operational_reconciliation_attributions'] as $table) {
                 $this->assertTrue(Schema::hasTable($table));
                 $this->assertSame(0, DB::table($table)->count(), $table);
             }
@@ -125,6 +129,15 @@ class OperationalAccountingMigrationUpgradeTest extends TestCase
                 }
             }
             $migrations[6]->up();
+            foreach ([
+                9 => 'operational_reconciliation_reviews', 10 => 'operational_reconciliation_charts',
+                11 => 'operational_reconciliation_accounts', 12 => 'operational_reconciliation_categories',
+                13 => 'operational_reconciliation_journals', 14 => 'operational_reconciliation_attributions',
+            ] as $number => $table) {
+                if (! Schema::hasTable($table)) {
+                    $migrations[$number]->up();
+                }
+            }
             DB::table('operational_accounting_account_scope')->where('account_id', $account)->delete();
             DB::table('operational_accounting_category_scope')->where('category_id', $category)->delete();
             DB::table('operational_accounting_integrations')->where('user_id', $owner->id)->delete();
