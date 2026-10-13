@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Accounting\Actions\CreateChartAccount;
 use App\Accounting\Actions\CloseAccountingPeriod;
 use App\Accounting\Actions\CreateAccountingPeriod;
+use App\Accounting\Actions\CreateChartAccount;
 use App\Accounting\Actions\DeleteChartAccount;
 use App\Accounting\Actions\DeleteJournalDraft;
 use App\Accounting\Actions\SaveJournalDraft;
@@ -375,13 +375,13 @@ class AccountingActionTest extends TestCase
             DB::flushQueryLog();
             $this->update($first, ['name' => 'Renamed']);
             $locks = array_values(array_filter(DB::getQueryLog(), fn ($q) => str_contains($q['query'], 'for update')));
-            $this->assertCount(2, $locks);
+            $this->assertCount(3, $locks);
             $this->assertStringContainsString('users', $locks[0]['query']);
-            $this->assertStringContainsString('order by `id` asc', $locks[1]['query']);
-            $this->assertStringContainsString('chart_of_accounts', $locks[1]['query']);
+            $this->assertStringContainsString('operational_accounting_integrations', $locks[1]['query']);
+            $this->assertStringContainsString('order by `id` asc', $locks[2]['query']);
+            $this->assertStringContainsString('chart_of_accounts', $locks[2]['query']);
             $lineReads = array_values(array_filter(DB::getQueryLog(), fn ($q) => str_contains($q['query'], 'journal_lines')));
-            $this->assertCount(1, $lineReads);
-            $this->assertStringNotContainsString('for update', $lineReads[0]['query']);
+            $this->assertSame([], $lineReads, 'A rename needs neither reference-source locks nor reconciliation invalidation.');
         } finally {
             DB::disableQueryLog();
             DB::flushQueryLog();

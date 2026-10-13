@@ -16,6 +16,12 @@ final class ChartHierarchy
         // Serialize hierarchy writers, including insertion into an empty chart.
         AccountingPeriodLocks::owner($actor);
 
+        return self::lockForAlreadyLockedOwner($actor);
+    }
+
+    /** Caller owns the transaction and must already hold the owner lock. */
+    public static function lockForAlreadyLockedOwner(User $actor): Collection
+    {
         return ChartAccount::ownedBy($actor)->orderBy('id')->lockForUpdate()->get();
     }
 
