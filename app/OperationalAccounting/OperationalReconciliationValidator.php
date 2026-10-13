@@ -91,15 +91,39 @@ class OperationalReconciliationValidator
         }
     }
 
-    private function validateSnapshot(array $s, string $reference, string $digest): void
+    /** Completed evidence is immutable; no new reviewer approval token is needed. */
+    public function validateBound(array $snapshot, string $expectedState): void
+    {
+        try {
+            $reference = $snapshot['gate']['reconciliation_reference'] ?? null;
+            if (! is_string($reference)) {
+                $this->conflict('Readiness requires a completed binding.', AccountingConflictReason::ReconciliationState);
+            }
+            $this->validateSnapshot($snapshot, $reference, null, $expectedState);
+        } catch (InvalidArgumentException $exception) {
+            throw new AccountingConflict('Invalid exact reconciliation amount.', previous: $exception,
+                reason: AccountingConflictReason::ReconciliationEvidenceInvalid);
+        }
+    }
+
+    private function validateSnapshot(array $s, string $reference, ?string $digest, ?string $boundState = null): void
     {
         $r = $s['review'];
         $g = $s['gate'];
         $owner = (string) $s['owner_id'];
-        if ($r['completed_at'] !== null || $r['reviewed_by'] !== null) {
+        if ($boundState !== null) {
+            if ($g === null || $g['state'] !== $boundState || $g['reconciliation_reference'] === null || $g['reconciled_at'] === null) {
+                $this->conflict('Readiness requires a bound integration in the expected state.', AccountingConflictReason::ReconciliationState);
+            }
+            if ($r['completed_at'] === null || $r['reviewed_by'] === null
+                || (string) $r['reviewed_by'] !== $owner || $r['reference'] !== $g['reconciliation_reference']
+                || $r['completed_at'] !== $g['reconciled_at']) {
+                $this->invalid('Binding requires the exact owned completed self-review.');
+            }
+        } elseif ($r['completed_at'] !== null || $r['reviewed_by'] !== null) {
             $this->conflict('Review is already completed; it cannot be rebound.', AccountingConflictReason::ReconciliationAlreadyCompleted);
         }
-        if ($g === null || $g['state'] !== 'reconciling' || $g['reconciliation_reference'] !== null || $g['reconciled_at'] !== null) {
+        if ($boundState === null && ($g === null || $g['state'] !== 'reconciling' || $g['reconciliation_reference'] !== null || $g['reconciled_at'] !== null)) {
             $this->conflict('Completion requires an unbound reconciling integration.', AccountingConflictReason::ReconciliationState);
         }
         if ((string) $r['user_id'] !== $owner || (string) $g['user_id'] !== $owner || $r['reference'] !== $reference
@@ -128,7 +152,8 @@ class OperationalReconciliationValidator
             : ($r['balance_only_disclosure_code'] !== 'balance_only_legacy_history_v1' || ! $this->nonblank($r['balance_only_disclosure_text']))) {
             $this->invalid('Invalid historical-strategy disclosure.');
         }
-        if (! hash_equals($digest, $this->evidenceDigest($r, $s['evidence']))) {
+        $actualDigest = $this->evidenceDigest($r, $s['evidence']);
+        if ($boundState === null && ! hash_equals($digest, $actualDigest)) {
             $this->conflict('Reviewed evidence changed; approval token does not match.', AccountingConflictReason::ReconciliationDigestMismatch);
         }
         $e = $s['evidence'];
