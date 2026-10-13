@@ -4,6 +4,14 @@ namespace App\Accounting\Exceptions;
 
 enum AccountingConflictReason
 {
+    case ReconciliationState;
+    case ReconciliationAlreadyCompleted;
+    case ReconciliationSnapshotStale;
+    case ReconciliationBoundaryStale;
+    case ReconciliationEvidenceInvalid;
+    case ReconciliationDigestMismatch;
+    case ReconciliationLedgerMismatch;
+    case ReconciliationDiscoveryConflict;
     case AccountingPeriodClosed;
     case FiscalYearClosed;
     case OpeningBalancePosted;
