@@ -205,6 +205,8 @@ try {
         $result = (new App\Accounting\Actions\PostOpeningBalanceBatch)->execute($owner, $input['opening_batch'])->id;
     } elseif ($input['operation'] === 'historical-cashflow') {
         $result = (new App\Accounting\Actions\CompleteHistoricalCashFlowJournal)->execute($owner, $input['history_journal'], $input['history_allocations'])->name;
+    } elseif ($input['operation'] === 'close-fiscal') {
+        $result = (new App\Accounting\Actions\CloseFiscalYear)->execute($owner, $input['fiscal_start'], $input['fiscal_end'], config('accounting.currency'), $input['retained_account'])->id;
     } else {
         $result = Illuminate\Support\Facades\DB::table('operational_reconciliation_accounts')->where('review_id', $input['review'])
             ->where('user_id', $owner->id)->update(['rationale' => 'Concurrent reviewer decision']);
@@ -226,6 +228,7 @@ PHP;
             'reference' => $f['reference'], 'review' => $f['review'], 'digest' => $f['digest'], 'operation' => $operation,
             'mapping_target' => $f['mapping_target'] ?? null, 'chart_target' => $f['chart_target'] ?? null, 'history_journal' => $f['history_journal'] ?? null,
             'opening_batch' => $f['opening_batch'] ?? null, 'history_allocations' => $f['history_allocations'] ?? [],
+            'fiscal_start' => $f['fiscal_start'] ?? null, 'fiscal_end' => $f['fiscal_end'] ?? null, 'retained_account' => $f['retained_account'] ?? null,
             'data' => $this->postingData($f)], JSON_THROW_ON_ERROR)."\n");
         $this->waitEvent($id, 'ready');
         fwrite($pipes[0], "start\n");

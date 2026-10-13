@@ -4,11 +4,11 @@ namespace Tests\Feature;
 
 use App\Accounting\Actions\CloseFiscalYear;
 use App\Accounting\Actions\CreateChartAccount;
+use App\Accounting\Actions\CreateOpeningBalanceDraft;
 use App\Accounting\Actions\PostJournalEntry;
 use App\Accounting\Actions\PostOpeningBalanceBatch;
 use App\Accounting\Actions\ReverseJournalEntry;
 use App\Accounting\Actions\SaveJournalDraft;
-use App\Accounting\Actions\CreateOpeningBalanceDraft;
 use App\Accounting\Exceptions\AccountingConflict;
 use App\Models\ChartAccount;
 use App\Models\JournalEntry;
@@ -28,7 +28,9 @@ class FiscalYearCloseActionTest extends TestCase
     use RefreshFinancialDatabase;
 
     private User $owner;
+
     private ChartAccount $asset;
+
     private ChartAccount $retained;
 
     protected function setUp(): void
@@ -208,7 +210,7 @@ class FiscalYearCloseActionTest extends TestCase
             $this->conflict(fn () => $this->close(retainedId: $id), 'Retained earnings');
         }
         try {
-            $this->close(currency: 'USD' === config('accounting.currency') ? 'SAR' : 'USD');
+            $this->close(currency: config('accounting.currency') === 'USD' ? 'SAR' : 'USD');
             $this->fail('Wrong configured currency must be rejected.');
         } catch (ValidationException $exception) {
             $this->assertArrayHasKey('currency', $exception->errors());
@@ -266,7 +268,7 @@ class FiscalYearCloseActionTest extends TestCase
         $this->assertDatabaseCount('fiscal_year_closes', 0);
     }
 
-    public function test_lock_order_is_owner_period_fiscal_year_drafts_posted_lines_accounts_retained(): void
+    public function test_lock_order_is_owner_guards_integration_scopes_charts_headers_lines_opening_provenance(): void
     {
         $revenue = $this->account('4000', 'revenue');
         $this->posted([$this->line($this->asset, '1.00', '0.00'), $this->line($revenue, '0.00', '1.00')]);
@@ -275,13 +277,34 @@ class FiscalYearCloseActionTest extends TestCase
         try {
             $this->close();
             $locks = array_values(array_filter(DB::getQueryLog(), fn ($query) => str_contains(strtolower($query['query']), 'for update')));
-            $this->assertCount(9, $locks);
-            foreach (['users', 'accounting_periods', 'fiscal_year_closes', 'journal_entries',
-                'opening_balance_batches', 'journal_entries', 'journal_lines', 'chart_of_accounts'] as $index => $table) {
+            $this->assertCount(8, $locks);
+            foreach (['users', 'accounting_periods', 'fiscal_year_closes', 'operational_accounting_integrations',
+                'chart_of_accounts', 'journal_entries', 'journal_lines', 'opening_balance_batches'] as $index => $table) {
                 $this->assertStringContainsString($table, $locks[$index]['query']);
             }
-            $this->assertStringContainsString('order by `id` asc', $locks[7]['query']);
-            $this->assertStringContainsString('chart_of_accounts', $locks[8]['query']);
+            $this->assertSame([$this->owner->id], $locks[3]['bindings']);
+            $chartIds = [$this->asset->id, $revenue->id, $this->retained->id];
+            sort($chartIds);
+            $this->assertSame([$this->owner->id, ...$chartIds], $locks[4]['bindings']);
+            $this->assertStringContainsString('order by `id` asc', $locks[4]['query']);
+            $this->assertSame([$this->owner->id, '2026-01-01', '2026-12-31'], $locks[5]['bindings']);
+            $this->assertStringContainsString('order by `id` asc', $locks[5]['query']);
+            $this->assertStringContainsString('order by `journal_entry_id` asc, `id` asc', $locks[6]['query']);
+            $this->assertSame([$this->owner->id, 'draft', '2026-01-01', '2026-12-31'], $locks[7]['bindings']);
+            $queries = DB::getQueryLog();
+            $gateIndex = array_search($locks[3], $queries, true);
+            $chartIndex = array_search($locks[4], $queries, true);
+            $shared = array_filter($queries, fn ($q) => str_contains($q['query'], 'lock in share mode'));
+            $this->assertCount(4, $shared);
+            $tables = ['operational_accounting_account_scope', 'operational_accounting_category_scope',
+                'operational_account_mappings', 'operational_category_mappings'];
+            $position = 0;
+            foreach ($shared as $index => $query) {
+                $this->assertStringContainsString('from `'.$tables[$position++].'`', $query['query']);
+                $this->assertSame([$this->owner->id], $query['bindings']);
+                $this->assertGreaterThan($gateIndex, $index);
+                $this->assertLessThan($chartIndex, $index);
+            }
         } finally {
             DB::disableQueryLog();
             DB::flushQueryLog();
