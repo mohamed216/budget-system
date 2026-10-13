@@ -10,13 +10,15 @@ use Illuminate\Support\Str;
 use Throwable;
 
 /** Dedicated full accounting fixtures; structural protection tests remain unchanged. */
-trait InteractsWithOperationalAccountingReadyFixtures
+trait InteractsWithReconciliationFixtures
 {
     use InteractsWithEvidenceProtectionTriggers;
 
     private array $owners = [];
 
     private array $workers = [];
+
+    private array $probeConnections = [];
 
     protected function setUp(): void
     {
@@ -62,12 +64,20 @@ trait InteractsWithOperationalAccountingReadyFixtures
             }
         });
         $attempt(fn () => $this->cleanupFixtures());
-        $attempt(fn () => DB::purge('ready_probe'));
+        foreach ($this->probeConnections as $name) {
+            $attempt(fn () => DB::purge($name));
+        }
         $attempt(fn () => $this->assertProtectionTriggersInstalledExactly());
         $attempt(fn () => parent::tearDown());
         if ($failure !== null) {
             throw $failure;
         }
+    }
+
+    private function configureProbeConnection(string $name): void
+    {
+        config(["database.connections.{$name}" => config('database.connections.mysql_testing')]);
+        $this->probeConnections[] = $name;
     }
 
     private function fixture(string $strategy = 'balance_only', bool $empty = false): array
@@ -159,7 +169,7 @@ trait InteractsWithOperationalAccountingReadyFixtures
         return ['account_id' => $f['account'], 'category_id' => $f['category'], 'type' => 'income', 'amount' => '0.01', 'date' => '2026-10-12'];
     }
 
-    private function startWorker(array $f, string $operation = 'ready'): int
+    private function startWorker(array $f, string $operation): int
     {
         $script = <<<'PHP'
 $input = json_decode(fgets(STDIN), true, 512, JSON_THROW_ON_ERROR);

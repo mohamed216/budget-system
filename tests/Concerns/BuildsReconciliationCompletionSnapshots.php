@@ -63,4 +63,46 @@ trait BuildsReconciliationCompletionSnapshots
 
         return $s;
     }
+
+    public static function invalidReconciliationSnapshots(): array
+    {
+        $cases = [
+            'bound gate' => [['gate', 'reconciliation_reference'], 'already-bound'],
+            'ready gate' => [['gate', 'state'], 'ready'],
+            'completed review' => [['review', 'completed_at'], '2026-10-10 10:00:00.123456'],
+            'strategy mismatch' => [['gate', 'historical_transaction_strategy'], 'historical_backfill'],
+            'currency mismatch' => [['gate', 'accounting_currency'], 'USD'],
+            'boundary mismatch' => [['gate', 'transaction_high_water_id'], 0],
+            'scope time mismatch' => [['gate', 'scope_reviewed_at'], '2026-10-10 09:00:01'],
+            'unreviewed scope' => [['gate', 'scope_reviewed_at'], null],
+            'stale account mapping' => [['sources', 'operational_account_mappings', 0, 'chart_account_id'], 11],
+            'stale category mapping' => [['sources', 'operational_category_mappings', 0, 'chart_account_id'], 11],
+            'activity changed' => [['sources', 'operational_category_mappings', 0, 'cash_flow_activity'], 'investing'],
+            'mapping reviewer missing' => [['sources', 'operational_category_mappings', 0, 'reviewed_by'], null],
+            'role changed' => [['sources', 'chart_of_accounts', 0, 'cash_role'], 'cash'],
+            'role unreviewed' => [['sources', 'chart_of_accounts', 0, 'cash_role'], null],
+            'inactive chart' => [['sources', 'chart_of_accounts', 0, 'is_active'], 0],
+            'wrong type' => [['sources', 'chart_of_accounts', 0, 'type'], 'liability'],
+            'foreign chart' => [['sources', 'chart_of_accounts', 0, 'user_id'], 2],
+            'balance changed' => [['sources', 'accounts', 0, 'balance'], '100.01'],
+            'account currency changed' => [['sources', 'accounts', 0, 'currency'], 'USD'],
+            'unexpected category' => [['sources', 'categories', 0, 'type'], 'transfer'],
+            'post boundary activity' => [['sources', 'transactions', 0, 'id'], 2],
+            'draft journal' => [['sources', 'journal_entries', 0, 'status'], 'draft'],
+            'foreign journal' => [['sources', 'journal_entries', 0, 'user_id'], 2],
+            'wrong journal currency' => [['sources', 'journal_entries', 0, 'currency'], 'USD'],
+            'unbalanced journal' => [['sources', 'journal_lines', 1, 'credit'], '99.99'],
+            'two sided line' => [['sources', 'journal_lines', 0, 'credit'], '0.01'],
+            'undercoverage' => [['evidence', 'attributions', 0, 'amount'], '99.99'],
+            'overcoverage' => [['evidence', 'attributions', 0, 'amount'], '100.01'],
+            'wrong attribution target' => [['evidence', 'attributions', 0, 'account_id'], 2],
+            'blank rationale' => [['evidence', 'attributions', 0, 'rationale'], '  '],
+            'invalid purpose' => [['evidence', 'attributions', 0, 'purpose'], 'historical_transaction'],
+            'blank disclosure' => [['review', 'balance_only_disclosure_text'], '  '],
+            'wrong disclosure code' => [['review', 'balance_only_disclosure_code'], 'other'],
+            'missing supersession' => [['review', 'supersedes_review_id'], 2],
+        ];
+
+        return array_map(fn ($case) => $case, $cases);
+    }
 }

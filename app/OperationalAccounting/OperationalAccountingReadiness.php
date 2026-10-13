@@ -5,6 +5,11 @@ namespace App\OperationalAccounting;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Advisory, nonlocking diagnostics only; this result is not authorization for
+ * reconciling -> ready. Use Actions\MarkOperationalAccountingReady for the
+ * authoritative READY transition and current, locked freshness validation.
+ */
 final class OperationalAccountingReadiness
 {
     /** @return array{ready: bool, issues: array<string, list<int>>} */

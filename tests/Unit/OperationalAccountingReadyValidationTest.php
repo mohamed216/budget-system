@@ -63,7 +63,7 @@ class OperationalAccountingReadyValidationTest extends TestCase
     {
         // The same financial rule mutations used for draft completion must also
         // reject a genuinely sealed/bound snapshot, not a synthetic draft.
-        $cases = OperationalReconciliationCompletionValidationTest::invalidSnapshots();
+        $cases = self::invalidReconciliationSnapshots();
         unset($cases['bound gate']);
         $cases['missing activity review time'] = [['sources', 'operational_category_mappings', 0, 'reviewed_at'], null];
         $cases['account scope'] = [['sources', 'operational_accounting_account_scope'], []];

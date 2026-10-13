@@ -14,12 +14,12 @@ use Illuminate\Events\Dispatcher;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
-use Tests\Concerns\InteractsWithOperationalAccountingReadyFixtures;
+use Tests\Concerns\InteractsWithReconciliationFixtures;
 use Tests\TestCase;
 
 class OperationalAccountingReadyTest extends TestCase
 {
-    use InteractsWithOperationalAccountingReadyFixtures;
+    use InteractsWithReconciliationFixtures;
 
     private function ready(array $f, ?MarkOperationalAccountingReady $action = null): array
     {
@@ -127,7 +127,7 @@ class OperationalAccountingReadyTest extends TestCase
         DB::beginTransaction();
         DB::table('users')->where('id', $foreign['owner']->id)->lockForUpdate()->first();
         try {
-            $job = $this->startWorker($f);
+            $job = $this->startWorker($f, 'ready');
             $result = $this->waitEvent($job, 'result');
         } finally {
             DB::commit();
@@ -218,7 +218,7 @@ class OperationalAccountingReadyTest extends TestCase
         DB::beginTransaction();
         (new PostTransaction)->handle($f['owner'], $this->postingData($f));
         try {
-            $job = $this->startWorker($f);
+            $job = $this->startWorker($f, 'ready');
             $this->assertWorkerWaiting($job);
         } finally {
             DB::commit();
@@ -274,8 +274,8 @@ class OperationalAccountingReadyTest extends TestCase
         DB::beginTransaction();
         DB::table('users')->where('id', $f['owner']->id)->lockForUpdate()->first();
         try {
-            $first = $this->startWorker($f);
-            $second = $this->startWorker($f);
+            $first = $this->startWorker($f, 'ready');
+            $second = $this->startWorker($f, 'ready');
             $this->assertWorkerWaiting($first);
             $this->assertWorkerWaiting($second);
         } finally {
@@ -289,7 +289,7 @@ class OperationalAccountingReadyTest extends TestCase
     public function test_old_repeatable_read_snapshot_cannot_hide_a_committed_balance_change(): void
     {
         $f = $this->boundFixture();
-        config(['database.connections.ready_probe' => config('database.connections.mysql_testing')]);
+        $this->configureProbeConnection('ready_probe');
         $changed = false;
         $attempts = 0;
         DB::connection()->beforeExecuting(function ($sql) use ($f, &$changed, &$attempts): void {
