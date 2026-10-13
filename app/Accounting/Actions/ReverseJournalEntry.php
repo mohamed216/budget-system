@@ -9,10 +9,14 @@ use App\Accounting\Exceptions\AccountingConflict;
 use App\Accounting\Exceptions\AccountingConflictReason;
 use App\Accounting\PeriodGuard;
 use App\Models\ChartAccount;
+use App\Models\FiscalYearClose;
 use App\Models\JournalEntry;
 use App\Models\JournalLine;
-use App\Models\FiscalYearClose;
 use App\Models\User;
+use App\OperationalAccounting\OperationalReconciliationChartDependencies;
+use App\OperationalAccounting\OperationalReconciliationHistoryDependencies;
+use App\OperationalAccounting\OperationalReconciliationInvalidation;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -20,26 +24,67 @@ final class ReverseJournalEntry
 {
     public function execute(User $actor, int $journalEntryId): JournalEntry
     {
+        if (! $actor->exists || $actor->getKey() === null || $actor->getKey() <= 0) {
+            throw (new ModelNotFoundException)->setModel(User::class);
+        }
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            try {
+                return $this->reverse($actor, $journalEntryId);
+            } catch (AccountingConflict $exception) {
+                if ($exception->reason !== AccountingConflictReason::ReconciliationDiscoveryConflict
+                    || DB::transactionLevel() !== 0 || $attempt === 2) {
+                    throw $exception;
+                }
+            }
+        }
+        throw new \LogicException('Unreachable reversal rediscovery state.');
+    }
+
+    private function reverse(User $actor, int $journalEntryId): JournalEntry
+    {
         return DB::transaction(function () use ($actor, $journalEntryId) {
             AccountingPeriodLocks::owner($actor);
             // Resolve ownership before checking the current period, without taking a journal lock.
-            JournalEntry::ownedBy($actor)->whereKey($journalEntryId)->firstOrFail();
+            $candidate = JournalEntry::ownedBy($actor)->whereKey($journalEntryId)->first();
+            $accountIds = $candidate?->lines()->pluck('chart_account_id')->unique()->sort()->values()->all() ?? [];
             $reversalDate = now()->toDateString();
-            (new PeriodGuard)->assertOpen($actor, $reversalDate);
+            $periodConflict = null;
+            try {
+                (new PeriodGuard)->assertOpen($actor, $reversalDate);
+            } catch (AccountingConflict $exception) {
+                if ($candidate !== null) {
+                    throw $exception;
+                }
+                // Candidate absence is not authoritative ownership. Preserve
+                // not-found semantics before surfacing this owner's date guard.
+                $periodConflict = $exception;
+            }
             // Lock the fiscal-year link before the journal header, preserving owner -> date guards -> fiscal close -> journal.
             if (FiscalYearClose::ownedBy($actor)->where('journal_entry_id', $journalEntryId)->lockForUpdate()->first(['id']) !== null) {
                 throw new AccountingConflict('Fiscal-year closing journals cannot be reversed through the generic reversal action.');
             }
-            $original = JournalEntry::ownedBy($actor)->whereKey($journalEntryId)->lockForUpdate()->firstOrFail();
+            $integration = DB::table('operational_accounting_integrations')->where('user_id', $actor->id)->lockForUpdate()->first();
+            (new OperationalReconciliationChartDependencies)->lockParticipation($actor->id);
+            $accounts = ChartAccount::ownedBy($actor)->whereIn('id', $accountIds)->orderBy('id')->lockForUpdate()->get();
+            // Current-read the original and the reversal uniqueness range together,
+            // in ID order. Candidate negative existence is never authoritative.
+            $headers = JournalEntry::ownedBy($actor)->where(fn ($q) => $q->where('id', $journalEntryId)
+                ->orWhere('reversal_of_id', $journalEntryId))->orderBy('id')->lockForUpdate()->get();
+            $original = $headers->find($journalEntryId) ?? throw (new ModelNotFoundException)->setModel(JournalEntry::class, [$journalEntryId]);
+            if ($periodConflict !== null) {
+                throw $periodConflict;
+            }
             if (! $original->isPosted() || $original->reversal_of_id !== null) {
                 throw new AccountingConflict('Only an original posted journal can be reversed.');
             }
-            if ($original->reversal()->lockForUpdate()->first() !== null) {
+            if ($headers->contains(fn ($header) => $header->reversal_of_id !== null && (string) $header->reversal_of_id === (string) $journalEntryId)) {
                 throw new AccountingConflict('Journal has already been reversed.');
             }
-            $isOpeningBalance = $original->openingBalanceBatch()->exists();
-
             $lines = $original->lines()->lockForUpdate()->get();
+            $currentIds = $lines->pluck('chart_account_id')->unique()->sort()->values()->all();
+            if (array_map('strval', $accountIds) !== array_map('strval', $currentIds)) {
+                throw new AccountingConflict('Reversal chart sources changed; rediscovery required.', reason: AccountingConflictReason::ReconciliationDiscoveryConflict);
+            }
             if ($lines->count() < 2) {
                 throw new AccountingConflict('Reversal requires at least two original journal lines.');
             }
@@ -76,14 +121,15 @@ final class ReverseJournalEntry
 
             $originalAllocations = [];
             $hasCash = false;
+            $allocationRows = DB::table('journal_line_allocations')->where('user_id', $actor->id)
+                ->where('journal_entry_id', $original->id)->orderBy('id')->lockForUpdate()->get();
+            $completion = DB::table('cash_flow_journal_completions')->where('user_id', $actor->id)
+                ->where('journal_entry_id', $original->id)->lockForUpdate()->first();
+            // Opening provenance is a current read after headers/lines, never a
+            // consistent-read exists() that can hide a committed special link.
+            $isOpeningBalance = DB::table('opening_balance_batches')->where('user_id', $actor->id)
+                ->where('journal_entry_id', $original->id)->orderBy('id')->lockForUpdate()->first() !== null;
             if (! $isOpeningBalance) {
-                $accountIds = $lines->pluck('chart_account_id')->unique()->sort()->values()->all();
-                $accounts = ChartAccount::ownedBy($actor)->whereIn('id', $accountIds)
-                    ->orderBy('id')->lockForUpdate()->get();
-                $allocationRows = DB::table('journal_line_allocations')->where('user_id', $actor->id)
-                    ->where('journal_entry_id', $original->id)->orderBy('id')->lockForUpdate()->get();
-                $completion = DB::table('cash_flow_journal_completions')->where('user_id', $actor->id)
-                    ->where('journal_entry_id', $original->id)->lockForUpdate()->first();
                 $validator = new CashFlowAllocationValidator;
                 $originalAllocations = $validator->fromPersisted($allocationRows);
                 $hasCash = $validator->validate($lines, $accounts, $originalAllocations, complete: true);
@@ -104,6 +150,7 @@ final class ReverseJournalEntry
             $reversal->save();
 
             $reversedLineIdsByOriginalId = [];
+            $reversalSources = [];
             foreach ($reversedLines as $index => $fields) {
                 $line = new JournalLine([
                     'chart_account_id' => $fields['chart_account_id'],
@@ -114,12 +161,28 @@ final class ReverseJournalEntry
                 $line->user_id = $original->user_id;
                 $line->line_number = $fields['line_number'];
                 $reversal->lines()->save($line);
+                $reversalSources[] = $line->getAttributes();
                 $reversedLineIdsByOriginalId[$lines[$index]->id] = $line->id;
             }
 
             if ($hasCash) {
                 (new CopyReversalCashFlowAllocations)->copy($actor, $reversal->id, $originalAllocations,
                     $reversedLineIdsByOriginalId);
+            }
+
+            // Newly created draft sources are owned by this transaction. Protect
+            // their completion range before evidence/parent locks as well.
+            DB::table('cash_flow_journal_completions')->where('user_id', $actor->id)
+                ->where('journal_entry_id', $reversal->id)->lockForUpdate()->first();
+            $review = (new OperationalReconciliationHistoryDependencies)->lockBoundReview($actor->id, $integration, [
+                'journal_ids' => [$original->id, $reversal->id], 'chart_ids' => $accounts->modelKeys(),
+                'lines' => array_merge($lines->map(fn ($line) => $line->getAttributes())->all(), $reversalSources),
+            ]);
+            $relevant = $review !== null && (in_array((string) $original->id, array_map('strval', $review['journal_ids']), true)
+                || array_intersect(array_map('strval', $accountIds), array_map('strval', $review['chart_ids'])) !== []);
+            $changes = $relevant ? (new OperationalReconciliationInvalidation)->changesFor($integration) : [];
+            if ($changes !== []) {
+                DB::table('operational_accounting_integrations')->where('user_id', $actor->id)->update($changes + ['updated_at' => now()]);
             }
 
             $reversal->status = 'posted';

@@ -197,6 +197,10 @@ try {
     } elseif ($input['operation'] === 'deactivate-chart') {
         $chart = App\Models\ChartAccount::ownedBy($owner)->findOrFail($input['chart_target']);
         $result = (new App\Accounting\Actions\UpdateChartAccount)->execute($owner, $chart->id, $chart->code, $chart->name, $chart->type, false, $chart->parent_id)->id;
+    } elseif ($input['operation'] === 'post-journal') {
+        $result = (new App\Accounting\Actions\PostJournalEntry)->execute($owner, $input['history_journal'])->id;
+    } elseif ($input['operation'] === 'reverse-journal') {
+        $result = (new App\Accounting\Actions\ReverseJournalEntry)->execute($owner, $input['history_journal'])->id;
     } else {
         $result = Illuminate\Support\Facades\DB::table('operational_reconciliation_accounts')->where('review_id', $input['review'])
             ->where('user_id', $owner->id)->update(['rationale' => 'Concurrent reviewer decision']);
@@ -216,7 +220,7 @@ PHP;
         stream_set_blocking($pipes[2], false);
         fwrite($pipes[0], json_encode(['connection' => config('database.connections.mysql_testing'), 'owner' => $f['owner']->id,
             'reference' => $f['reference'], 'review' => $f['review'], 'digest' => $f['digest'], 'operation' => $operation,
-            'mapping_target' => $f['mapping_target'] ?? null, 'chart_target' => $f['chart_target'] ?? null,
+            'mapping_target' => $f['mapping_target'] ?? null, 'chart_target' => $f['chart_target'] ?? null, 'history_journal' => $f['history_journal'] ?? null,
             'data' => $this->postingData($f)], JSON_THROW_ON_ERROR)."\n");
         $this->waitEvent($id, 'ready');
         fwrite($pipes[0], "start\n");

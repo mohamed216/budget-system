@@ -2,13 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Accounting\AccountingPeriodLocks;
 use App\Accounting\Actions\CloseAccountingPeriod;
 use App\Accounting\Actions\CreateAccountingPeriod;
 use App\Accounting\Actions\CreateChartAccount;
 use App\Accounting\Actions\PostJournalEntry;
 use App\Accounting\Actions\ReverseJournalEntry;
 use App\Accounting\Actions\SaveJournalDraft;
-use App\Accounting\AccountingPeriodLocks;
 use App\Accounting\Exceptions\AccountingConflict;
 use App\Accounting\PeriodGuard;
 use App\Models\ChartAccount;
@@ -242,7 +242,7 @@ class JournalPeriodGuardTest extends TestCase
         }
     }
 
-    public function test_reversal_lock_order_is_owner_period_fiscal_year_header_lines_accounts_allocations_completion(): void
+    public function test_reversal_lock_order_is_owner_guards_integration_scopes_charts_headers_lines_provenance(): void
     {
         $owner = User::factory()->create();
         $account = $this->account($owner);
@@ -250,24 +250,63 @@ class JournalPeriodGuardTest extends TestCase
         DB::enableQueryLog();
         DB::flushQueryLog();
         try {
-            (new ReverseJournalEntry)->execute($owner, $original->id);
-            $locks = array_values(array_filter(DB::getQueryLog(), fn ($q) => str_contains(strtolower($q['query']), 'for update')));
-            $this->assertCount(10, $locks);
-            $this->assertStringContainsString('users', $locks[0]['query']);
-            $this->assertStringContainsString('accounting_periods', $locks[1]['query']);
-            $this->assertStringContainsString('fiscal_year_closes', $locks[2]['query']);
-            $this->assertStringContainsString('fiscal_year_closes', $locks[3]['query']);
-            $this->assertStringContainsString('journal_entries', $locks[4]['query']);
-            $this->assertStringContainsString('journal_entries', $locks[5]['query']);
-            $this->assertStringContainsString('journal_lines', $locks[6]['query']);
-            $this->assertStringContainsString('chart_of_accounts', $locks[7]['query']);
-            $this->assertStringContainsString('order by `id` asc', $locks[7]['query']);
-            $this->assertSame([$owner->id, $account->id], $locks[7]['bindings']);
-            $this->assertStringContainsString('journal_line_allocations', $locks[8]['query']);
+            $reversal = (new ReverseJournalEntry)->execute($owner, $original->id);
+            $queries = DB::getQueryLog();
+            $locks = array_values(array_filter($queries, fn ($q) => str_contains(strtolower($q['query']), 'for update')));
+            $tables = ['users', 'accounting_periods', 'fiscal_year_closes', 'fiscal_year_closes',
+                'operational_accounting_integrations', 'chart_of_accounts', 'journal_entries', 'journal_lines',
+                'journal_line_allocations', 'cash_flow_journal_completions', 'opening_balance_batches',
+                'cash_flow_journal_completions'];
+            $this->assertCount(12, $locks);
+            foreach ($tables as $index => $table) {
+                $this->assertStringContainsString('from `'.$table.'`', $locks[$index]['query']);
+            }
+            $date = $reversal->entry_date->toDateString();
+            $this->assertSame([$owner->id], $locks[0]['bindings']);
+            $this->assertSame([$owner->id, $date, $date], $locks[1]['bindings']);
+            $this->assertSame([$owner->id, $date, $date], $locks[2]['bindings']);
+            $this->assertStringContainsString('`journal_entry_id` = ?', $locks[3]['query']);
+            $this->assertSame([$owner->id, $original->id], $locks[3]['bindings']);
+            $this->assertSame([$owner->id], $locks[4]['bindings']);
+            $this->assertStringContainsString('order by `id` asc', $locks[5]['query']);
+            $this->assertSame([$owner->id, $account->id], $locks[5]['bindings']);
+            $this->assertStringContainsString('`id` = ? or `reversal_of_id` = ?', $locks[6]['query']);
+            $this->assertStringContainsString('order by `id` asc', $locks[6]['query']);
+            $this->assertSame([$owner->id, $original->id, $original->id], $locks[6]['bindings']);
+            $this->assertStringContainsString('order by `line_number` asc', $locks[7]['query']);
+            $this->assertSame([$original->id], $locks[7]['bindings']);
             $this->assertStringContainsString('order by `id` asc', $locks[8]['query']);
             $this->assertSame([$owner->id, $original->id], $locks[8]['bindings']);
-            $this->assertStringContainsString('cash_flow_journal_completions', $locks[9]['query']);
             $this->assertSame([$owner->id, $original->id], $locks[9]['bindings']);
+            $this->assertStringContainsString('`journal_entry_id` = ?', $locks[10]['query']);
+            $this->assertStringContainsString('order by `id` asc', $locks[10]['query']);
+            $this->assertSame([$owner->id, $original->id], $locks[10]['bindings']);
+            $this->assertSame([$owner->id, $reversal->id], $locks[11]['bindings']);
+
+            // Preserve full-log positions: these SHARE locks do not appear in
+            // the FOR UPDATE subset, but must still precede chart acquisition.
+            $integrationIndex = array_search($locks[4], $queries, true);
+            $chartIndex = array_search($locks[5], $queries, true);
+            $this->assertNotFalse($integrationIndex);
+            $this->assertNotFalse($chartIndex);
+            $shared = array_filter($queries, fn ($q) => str_contains(strtolower($q['query']), 'lock in share mode'));
+            $this->assertCount(4, $shared);
+            $scopeTables = ['operational_accounting_account_scope', 'operational_accounting_category_scope',
+                'operational_account_mappings', 'operational_category_mappings'];
+            $position = 0;
+            foreach ($shared as $index => $query) {
+                $this->assertStringContainsString('from `'.$scopeTables[$position++].'`', $query['query']);
+                $this->assertSame([$owner->id], $query['bindings']);
+                $this->assertGreaterThan($integrationIndex, $index);
+                $this->assertLessThan($chartIndex, $index);
+            }
+
+            $this->assertNull(DB::table('operational_accounting_integrations')->where('user_id', $owner->id)->first(),
+                'This fixture has no integration row and must not synthesize a gate.');
+            foreach ($queries as $query) {
+                $this->assertStringNotContainsString('operational_reconciliation_', strtolower($query['query']),
+                    'Without a binding, no reconciliation evidence or review query/lock is expected.');
+            }
         } finally {
             DB::disableQueryLog();
             DB::flushQueryLog();

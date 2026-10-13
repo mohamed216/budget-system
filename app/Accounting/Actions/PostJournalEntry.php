@@ -6,10 +6,15 @@ use App\Accounting\AccountingPeriodLocks;
 use App\Accounting\CashFlowAllocationValidator;
 use App\Accounting\DecimalAmount;
 use App\Accounting\Exceptions\AccountingConflict;
+use App\Accounting\Exceptions\AccountingConflictReason;
 use App\Accounting\PeriodGuard;
 use App\Models\ChartAccount;
 use App\Models\JournalEntry;
 use App\Models\User;
+use App\OperationalAccounting\OperationalReconciliationChartDependencies;
+use App\OperationalAccounting\OperationalReconciliationHistoryDependencies;
+use App\OperationalAccounting\OperationalReconciliationInvalidation;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -17,12 +22,31 @@ final class PostJournalEntry
 {
     public function execute(User $actor, int $journalId): JournalEntry
     {
+        if (! $actor->exists || $actor->getKey() === null || $actor->getKey() <= 0) {
+            throw (new ModelNotFoundException)->setModel(User::class);
+        }
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            try {
+                return $this->post($actor, $journalId);
+            } catch (AccountingConflict $exception) {
+                if ($exception->reason !== AccountingConflictReason::ReconciliationDiscoveryConflict
+                    || DB::transactionLevel() !== 0 || $attempt === 2) {
+                    throw $exception;
+                }
+            }
+        }
+        throw new \LogicException('Unreachable posting rediscovery state.');
+    }
+
+    private function post(User $actor, int $journalId): JournalEntry
+    {
         return DB::transaction(function () use ($actor, $journalId) {
             AccountingPeriodLocks::owner($actor);
             // Read ownership and date without a journal lock; the owner lock serializes all app writes.
-            $candidate = JournalEntry::ownedBy($actor)->whereKey($journalId)->firstOrFail();
+            $candidate = JournalEntry::ownedBy($actor)->whereKey($journalId)->first();
+            $ids = $candidate?->lines()->pluck('chart_account_id')->unique()->sort()->values()->all() ?? [];
             $periodConflict = null;
-            if (! $candidate->isPosted()) {
+            if ($candidate !== null && ! $candidate->isPosted()) {
                 try {
                     (new PeriodGuard)->assertOpen($actor, $candidate->entry_date->toDateString());
                 } catch (AccountingConflict $exception) {
@@ -30,12 +54,18 @@ final class PostJournalEntry
                     $periodConflict = $exception;
                 }
             }
+            $integration = DB::table('operational_accounting_integrations')->where('user_id', $actor->id)->lockForUpdate()->first();
+            (new OperationalReconciliationChartDependencies)->lockParticipation($actor->id);
+            $accounts = ChartAccount::ownedBy($actor)->whereIn('id', $ids)->orderBy('id')->lockForUpdate()->get();
             $journal = JournalEntry::ownedBy($actor)->whereKey($journalId)->lockForUpdate()->firstOrFail();
             if ($journal->isPosted()) {
                 return $journal;
             }
+            if ($candidate === null || $candidate->isPosted()) {
+                throw new AccountingConflict('Current draft requires date/source rediscovery.', reason: AccountingConflictReason::ReconciliationDiscoveryConflict);
+            }
             if ($journal->entry_date->toDateString() !== $candidate->entry_date->toDateString()) {
-                throw new AccountingConflict('Journal date changed while posting; reload the draft.');
+                throw new AccountingConflict('Journal date changed while posting; rediscovery required.', reason: AccountingConflictReason::ReconciliationDiscoveryConflict);
             }
             if ($periodConflict !== null) {
                 throw $periodConflict;
@@ -44,8 +74,10 @@ final class PostJournalEntry
                 throw new AccountingConflict('Only draft journals can be posted.');
             }
             $lines = $journal->lines()->lockForUpdate()->get();
-            $ids = $lines->pluck('chart_account_id')->unique()->sort()->values()->all();
-            $accounts = ChartAccount::ownedBy($actor)->whereIn('id', $ids)->orderBy('id')->lockForUpdate()->get();
+            $currentIds = $lines->pluck('chart_account_id')->unique()->sort()->values()->all();
+            if (array_map('strval', $currentIds) !== array_map('strval', $ids)) {
+                throw new AccountingConflict('Journal chart sources changed; rediscovery required.', reason: AccountingConflictReason::ReconciliationDiscoveryConflict);
+            }
             if ($lines->count() < 2) {
                 throw new AccountingConflict('Posting requires at least two journal lines.');
             }
@@ -80,10 +112,23 @@ final class PostJournalEntry
                 ->where('journal_entry_id', $journalId)->orderBy('id')->lockForUpdate()->get();
             $validator = new CashFlowAllocationValidator;
             $hasCash = $validator->validate($lines, $accounts, $validator->fromPersisted($allocationRows), complete: true);
+            DB::table('cash_flow_journal_completions')->where('user_id', $actor->id)
+                ->where('journal_entry_id', $journalId)->lockForUpdate()->first();
+            $review = (new OperationalReconciliationHistoryDependencies)->lockBoundReview($actor->id, $integration, [
+                'journal_ids' => [$journalId], 'chart_ids' => $accounts->modelKeys(),
+                'lines' => $lines->map(fn ($line) => $line->getAttributes())->all(),
+            ]);
+            $relevant = $review !== null && array_intersect(array_map('strval', $ids), array_map('strval', $review['chart_ids'])) !== [];
+            $changes = $relevant ? (new OperationalReconciliationInvalidation)->changesFor($integration) : [];
+            // Sources are already locked; no dependency discovery is allowed after
+            // the review parent. Posting, invalidation and completion are atomic.
             $journal->status = 'posted';
             $journal->posted_at = now();
             $journal->version++;
             $journal->save();
+            if ($changes !== []) {
+                DB::table('operational_accounting_integrations')->where('user_id', $actor->id)->update($changes + ['updated_at' => now()]);
+            }
             if ($hasCash) {
                 DB::table('cash_flow_journal_completions')->insert([
                     'user_id' => $actor->id, 'journal_entry_id' => $journalId,
