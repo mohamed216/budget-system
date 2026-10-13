@@ -5,14 +5,27 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Tests\Concerns\InteractsWithEvidenceProtectionTriggers;
 use Tests\TestCase;
 
 class OperationalReconciliationEvidenceMigrationTest extends TestCase
 {
+    use InteractsWithEvidenceProtectionTriggers;
+
     private function migrations(): array
     {
         $this->assertSame(0, DB::transactionLevel(), 'DDL tests require the isolated database without transactional fixtures.');
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
+        // Exercise foundation rollback without its later protection dependency.
+        $protection = require database_path('migrations/2026_10_10_000015_protect_operational_reconciliation_evidence.php');
+        $this->assertEvidenceEmpty();
+        $this->assertProtectionTriggersInstalledExactly();
+        $protection->down();
+        $this->beforeApplicationDestroyed(function () use ($protection): void {
+            $this->assertEvidenceEmpty();
+            $protection->up();
+            $this->assertProtectionTriggersInstalledExactly();
+        });
         $migrations = [];
         foreach (range(9, 14) as $number) {
             $paths = glob(database_path(sprintf('migrations/2026_10_10_%06d_*.php', $number)));
@@ -21,6 +34,13 @@ class OperationalReconciliationEvidenceMigrationTest extends TestCase
         }
 
         return $migrations;
+    }
+
+    private function assertEvidenceEmpty(): void
+    {
+        foreach ($this->tables() as $table) {
+            $this->assertDatabaseCount($table, 0);
+        }
     }
 
     private function tables(): array

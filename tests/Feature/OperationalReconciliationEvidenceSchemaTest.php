@@ -7,12 +7,48 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Tests\Concerns\InteractsWithEvidenceProtectionTriggers;
 use Tests\Concerns\RefreshFinancialDatabase;
 use Tests\TestCase;
 
 class OperationalReconciliationEvidenceSchemaTest extends TestCase
 {
+    use InteractsWithEvidenceProtectionTriggers;
     use RefreshFinancialDatabase;
+
+    private array $fixtureReviewIds = [];
+
+    public function refreshDatabase(): void
+    {
+        // This suite tests 000009-000014 independently of the later trigger layer.
+        // DDL occurs before fixtures and protections are restored after rollback.
+        $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
+        $protection = require database_path('migrations/2026_10_10_000015_protect_operational_reconciliation_evidence.php');
+        $this->assertEvidenceEmpty();
+        $this->assertProtectionTriggersInstalledExactly();
+        $protection->down();
+        $this->beginDatabaseTransaction();
+        $this->beforeApplicationDestroyed(function () use ($protection): void {
+            // Runs AFTER RefreshDatabase's rollback. Clean only this test's IDs
+            // even if an attempted DDL statement implicitly committed fixtures.
+            foreach (['attributions', 'journals', 'categories', 'accounts', 'charts'] as $suffix) {
+                DB::table('operational_reconciliation_'.$suffix)->whereIn('review_id', $this->fixtureReviewIds)->delete();
+            }
+            foreach (array_reverse($this->fixtureReviewIds) as $id) {
+                DB::table('operational_reconciliation_reviews')->where('id', $id)->delete();
+            }
+            $this->assertEvidenceEmpty();
+            $protection->up();
+            $this->assertProtectionTriggersInstalledExactly();
+        });
+    }
+
+    private function assertEvidenceEmpty(): void
+    {
+        foreach (['reviews', 'charts', 'accounts', 'categories', 'journals', 'attributions'] as $suffix) {
+            $this->assertDatabaseCount('operational_reconciliation_'.$suffix, 0);
+        }
+    }
 
     private function rejects(callable $operation, int $code = 3819): void
     {
@@ -26,12 +62,15 @@ class OperationalReconciliationEvidenceSchemaTest extends TestCase
 
     private function review(int $owner, array $overrides = []): int
     {
-        return DB::table('operational_reconciliation_reviews')->insertGetId(array_replace([
+        $id = DB::table('operational_reconciliation_reviews')->insertGetId(array_replace([
             'user_id' => $owner, 'reference' => (string) Str::uuid(),
             'historical_transaction_strategy' => 'historical_backfill', 'accounting_currency' => 'SAR',
             'transaction_high_water_id' => 0, 'scope_reviewed_at' => '2026-10-12 00:00:00',
             'created_at' => '2026-10-12 00:00:00',
         ], $overrides));
+        $this->fixtureReviewIds[] = $id;
+
+        return $id;
     }
 
     private function fixture(): array

@@ -5,15 +5,33 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Tests\Concerns\InteractsWithEvidenceProtectionTriggers;
 use Tests\TestCase;
 
 class OperationalAccountingMigrationUpgradeTest extends TestCase
 {
+    use InteractsWithEvidenceProtectionTriggers;
+
     public function test_schema_upgrade_does_not_claim_or_populate_existing_operational_data(): void
     {
         // MySQL DDL commits implicitly. Use only the isolated test database and no transactional fixtures.
         $this->assertSame(0, DB::transactionLevel());
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
+        // Establish the unprotected EMPTY foundation before any upgrade fixture.
+        // Never remove protections to clean up somebody else's evidence.
+        foreach (['reviews', 'charts', 'accounts', 'categories', 'journals', 'attributions'] as $suffix) {
+            $this->assertDatabaseCount('operational_reconciliation_'.$suffix, 0);
+        }
+        $protection = require database_path('migrations/2026_10_10_000015_protect_operational_reconciliation_evidence.php');
+        $this->assertProtectionTriggersInstalledExactly();
+        $protection->down();
+        $this->beforeApplicationDestroyed(function () use ($protection): void {
+            if (! DB::table('information_schema.TRIGGERS')->where('TRIGGER_SCHEMA', DB::getDatabaseName())
+                ->where('TRIGGER_NAME', 'orr_header_bi')->exists()) {
+                $protection->up();
+            }
+            $this->assertProtectionTriggersInstalledExactly();
+        });
         $owner = User::factory()->create();
         $account = DB::table('accounts')->insertGetId([
             'user_id' => $owner->id, 'name' => 'Pre-upgrade account', 'type' => 'bank',
@@ -33,15 +51,17 @@ class OperationalAccountingMigrationUpgradeTest extends TestCase
         ];
         $migrations = [];
         // Evidence FKs must be rolled back before the original owner reference keys.
-        for ($number = 1; $number <= 14; $number++) {
+        for ($number = 1; $number <= 15; $number++) {
             $path = glob(database_path(sprintf('migrations/2026_10_10_%06d_*.php', $number)));
             $this->assertCount(1, $path);
             $migrations[$number] = require $path[0];
         }
 
         try {
-            foreach (array_reverse($migrations, true) as $migration) {
-                $migration->down();
+            foreach (array_reverse($migrations, true) as $number => $migration) {
+                if ($number !== 15) {
+                    $migration->down();
+                }
             }
             $this->assertSame('20500.00', DB::table('accounts')->where('id', $account)->value('balance'));
             $this->assertSame('500.00', DB::table('transactions')->where('id', $transaction)->value('amount'));
@@ -137,6 +157,10 @@ class OperationalAccountingMigrationUpgradeTest extends TestCase
                 if (! Schema::hasTable($table)) {
                     $migrations[$number]->up();
                 }
+            }
+            if (! DB::table('information_schema.TRIGGERS')->where('TRIGGER_SCHEMA', DB::getDatabaseName())
+                ->where('TRIGGER_NAME', 'orr_header_bi')->exists()) {
+                $migrations[15]->up();
             }
             DB::table('operational_accounting_account_scope')->where('account_id', $account)->delete();
             DB::table('operational_accounting_category_scope')->where('category_id', $category)->delete();
