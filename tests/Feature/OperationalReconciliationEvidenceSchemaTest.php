@@ -23,12 +23,14 @@ class OperationalReconciliationEvidenceSchemaTest extends TestCase
         // This suite tests 000009-000014 independently of the later trigger layer.
         // DDL occurs before fixtures and protections are restored after rollback.
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
+        $binding = require database_path('migrations/2026_10_10_000016_bind_operational_reconciliation_reviews.php');
+        $binding->down();
         $protection = require database_path('migrations/2026_10_10_000015_protect_operational_reconciliation_evidence.php');
         $this->assertEvidenceEmpty();
         $this->assertProtectionTriggersInstalledExactly();
         $protection->down();
         $this->beginDatabaseTransaction();
-        $this->beforeApplicationDestroyed(function () use ($protection): void {
+        $this->beforeApplicationDestroyed(function () use ($protection, $binding): void {
             // Runs AFTER RefreshDatabase's rollback. Clean only this test's IDs
             // even if an attempted DDL statement implicitly committed fixtures.
             foreach (['attributions', 'journals', 'categories', 'accounts', 'charts'] as $suffix) {
@@ -40,6 +42,7 @@ class OperationalReconciliationEvidenceSchemaTest extends TestCase
             $this->assertEvidenceEmpty();
             $protection->up();
             $this->assertProtectionTriggersInstalledExactly();
+            $binding->up();
         });
     }
 

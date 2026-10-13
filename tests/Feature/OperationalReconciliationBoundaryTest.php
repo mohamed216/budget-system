@@ -19,11 +19,13 @@ use Illuminate\Support\Facades\DB;
 use Mockery;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
+use Tests\Concerns\CreatesCompletedReconciliationBindings;
 use Tests\Concerns\RefreshFinancialDatabase;
 use Tests\TestCase;
 
 class OperationalReconciliationBoundaryTest extends TestCase
 {
+    use CreatesCompletedReconciliationBindings;
     use RefreshFinancialDatabase;
 
     private User $owner;
@@ -70,14 +72,14 @@ class OperationalReconciliationBoundaryTest extends TestCase
 
     private function gate(string $state = 'reconciling', ?User $owner = null): void
     {
-        DB::table('operational_accounting_integrations')->insert([
+        DB::table('operational_accounting_integrations')->insert($this->completedBindingFixture([
             'user_id' => ($owner ?? $this->owner)->id, 'state' => $state,
             'historical_transaction_strategy' => 'balance_only', 'accounting_currency' => 'SAR',
             'transaction_high_water_id' => 0, 'reconciliation_reference' => 'Reviewed evidence',
             'reconciled_at' => '2026-10-10 10:00:00', 'scope_reviewed_at' => '2026-10-10 09:00:00',
             'activated_at' => '2026-10-10 11:00:00', 'created_at' => '2026-10-10 08:00:00',
             'updated_at' => '2026-10-10 08:00:00',
-        ]);
+        ]));
     }
 
     private function row(): array
@@ -220,7 +222,7 @@ class OperationalReconciliationBoundaryTest extends TestCase
         // Explicit recapture also preserves the entire reviewed plan.
         $newId = $this->postOperationalTransaction();
         DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)
-            ->update(['reconciliation_reference' => 'New evidence', 'reconciled_at' => '2026-10-12 10:00:00']);
+            ->update($this->completedBindingFixture(array_replace($this->row(), ['reconciled_at' => '2026-10-12 10:00:00'])));
         $before = $this->inventory();
         $row = (new CaptureOperationalReconciliationBoundary)->execute($this->owner);
         $this->assertSame($newId, $row['transaction_high_water_id']);
@@ -303,14 +305,16 @@ class OperationalReconciliationBoundaryTest extends TestCase
     public function test_capture_null_boundary_as_zero_then_unchanged_capture_is_a_true_no_op(): void
     {
         $this->gate();
-        DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update(['transaction_high_water_id' => null]);
+        DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update([
+            'transaction_high_water_id' => null, 'reconciliation_reference' => null, 'reconciled_at' => null,
+        ]);
         $row = (new CaptureOperationalReconciliationBoundary)->execute($this->owner);
         $this->assertSame(0, $row['transaction_high_water_id']);
         $this->assertNull($row['reconciliation_reference']);
         $this->assertNull($row['reconciled_at']);
         // Even completion evidence is retained when the explicit boundary has not changed.
         DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)
-            ->update(['reconciliation_reference' => 'Completed', 'reconciled_at' => '2026-10-12 10:00:00']);
+            ->update($this->completedBindingFixture(array_replace($this->row(), ['reconciled_at' => '2026-10-12 10:00:00'])));
         $before = $this->inventory();
         $this->travel(1)->minutes();
         $this->assertSame($this->row(), (new CaptureOperationalReconciliationBoundary)->execute($this->owner));
@@ -410,6 +414,7 @@ class OperationalReconciliationBoundaryTest extends TestCase
             foreach (['operational_accounting_integrations', 'transactions', 'accounts', 'categories'] as $table) {
                 DB::table($table)->whereIn('user_id', $this->fixtureOwnerIds)->delete();
             }
+            $this->cleanupBindingFixtures($this->fixtureOwnerIds);
             DB::table('users')->whereIn('id', $this->fixtureOwnerIds)->delete();
             DB::beginTransaction();
         }
@@ -453,7 +458,9 @@ class OperationalReconciliationBoundaryTest extends TestCase
     {
         if ($kind === 'capture') {
             $this->gate();
-            DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update(['transaction_high_water_id' => null]);
+            DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update([
+                'transaction_high_water_id' => null, 'reconciliation_reference' => null, 'reconciled_at' => null,
+            ]);
         }
         $this->withTwoConnections(function (string $primary) use ($kind) {
             DB::beginTransaction();
@@ -509,7 +516,7 @@ class OperationalReconciliationBoundaryTest extends TestCase
                 $this->gate('legacy');
             } else {
                 DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)
-                    ->update(['reconciliation_reference' => 'New committed evidence', 'reconciled_at' => '2026-10-12 10:00:00']);
+                    ->update($this->completedBindingFixture(array_replace($this->row(), ['reconciled_at' => '2026-10-12 10:00:00'])));
             }
             DB::setDefaultConnection('reconciliation_probe');
             $this->assertSame(0, DB::table('transactions')->where('user_id', $this->owner->id)->count());

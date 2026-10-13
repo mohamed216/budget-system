@@ -16,15 +16,18 @@ class OperationalReconciliationEvidenceMigrationTest extends TestCase
     {
         $this->assertSame(0, DB::transactionLevel(), 'DDL tests require the isolated database without transactional fixtures.');
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
+        $binding = require database_path('migrations/2026_10_10_000016_bind_operational_reconciliation_reviews.php');
+        $binding->down();
         // Exercise foundation rollback without its later protection dependency.
         $protection = require database_path('migrations/2026_10_10_000015_protect_operational_reconciliation_evidence.php');
         $this->assertEvidenceEmpty();
         $this->assertProtectionTriggersInstalledExactly();
         $protection->down();
-        $this->beforeApplicationDestroyed(function () use ($protection): void {
+        $this->beforeApplicationDestroyed(function () use ($protection, $binding): void {
             $this->assertEvidenceEmpty();
             $protection->up();
             $this->assertProtectionTriggersInstalledExactly();
+            $binding->up();
         });
         $migrations = [];
         foreach (range(9, 14) as $number) {

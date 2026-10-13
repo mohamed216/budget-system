@@ -12,11 +12,13 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Tests\Concerns\CreatesCompletedReconciliationBindings;
 use Tests\Concerns\RefreshFinancialDatabase;
 use Tests\TestCase;
 
 class OperationalAccountingMappingTest extends TestCase
 {
+    use CreatesCompletedReconciliationBindings;
     use RefreshFinancialDatabase;
 
     private User $owner;
@@ -69,14 +71,20 @@ class OperationalAccountingMappingTest extends TestCase
 
     private function integration(string $strategy, int $highWater, string $state = 'ready', array $overrides = []): void
     {
-        DB::table('operational_accounting_integrations')->insert(array_replace([
+        $row = array_replace([
             'user_id' => $this->owner->id, 'state' => $state,
             'historical_transaction_strategy' => $strategy, 'transaction_high_water_id' => $highWater,
             'reconciliation_reference' => 'audited-plan', 'reconciled_at' => '2026-10-10 10:00:00',
             'scope_reviewed_at' => '2026-10-10 10:00:00',
-            'accounting_currency' => $state === 'active' ? config('accounting.currency') : null,
+            'accounting_currency' => config('accounting.currency'),
             'activated_at' => $state === 'active' ? '2026-10-10 11:00:00' : null,
-        ], $overrides));
+        ], $overrides);
+        if (array_key_exists('reconciliation_reference', $overrides) && $overrides['reconciliation_reference'] === null) {
+            $row['reconciled_at'] = null;
+        } else {
+            $row = $this->completedBindingFixture($row);
+        }
+        DB::table('operational_accounting_integrations')->insert($row);
     }
 
     private function scope(array $accountIds, array $categoryIds): void
@@ -309,7 +317,8 @@ class OperationalAccountingMappingTest extends TestCase
     {
         $historical = $this->transaction();
         $this->integration('balance_only', $historical, 'reconciling');
-        foreach ([['reconciliation_reference' => null], ['reconciliation_reference' => '  '], ['reconciled_at' => null], ['transaction_high_water_id' => null]] as $missing) {
+        foreach ([['reconciliation_reference' => null, 'reconciled_at' => null],
+            ['transaction_high_water_id' => null, 'reconciliation_reference' => null, 'reconciled_at' => null]] as $missing) {
             $original = (array) DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->first();
             DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update($missing);
             $readiness = (new OperationalAccountingReadiness)->for($this->owner);
@@ -371,32 +380,35 @@ class OperationalAccountingMappingTest extends TestCase
         $this->assertFalse($readiness['ready']);
         $this->assertSame([$this->owner->id], $readiness['issues']['missing_integration_metadata']);
         $this->integration('balance_only', 0, 'legacy');
-        $this->assertSame([], array_filter((new OperationalAccountingReadiness)->for($this->owner)['issues']));
+        $this->assertSame(['missing_reconciliation_evidence' => [$this->owner->id]], array_filter((new OperationalAccountingReadiness)->for($this->owner)['issues']));
         $this->assertFalse((new OperationalAccountingReadiness)->for($this->owner)['ready']);
         foreach (['reconciling', 'ready', 'active'] as $state) {
-            DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update([
+            $current = (array) DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->first();
+            DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update($this->completedBindingFixture(array_replace($current, [
                 'state' => $state, 'accounting_currency' => config('accounting.currency'),
                 'activated_at' => $state === 'active' ? '2026-10-10 11:00:00' : null,
-            ]);
+            ])));
             $this->assertSame($state !== 'reconciling', (new OperationalAccountingReadiness)->for($this->owner)['ready'], $state);
         }
         DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update(['activated_at' => '2026-10-10 09:00:00']);
         $readiness = (new OperationalAccountingReadiness)->for($this->owner);
         $this->assertFalse($readiness['ready']);
         $this->assertSame([$this->owner->id], $readiness['issues']['inconsistent_integration_metadata']);
-        DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update([
+        $current = (array) DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->first();
+        DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update($this->completedBindingFixture(array_replace($current, [
             'activated_at' => '2026-10-10 11:00:00', 'scope_reviewed_at' => '2026-10-10 12:00:00',
-        ]);
+        ])));
         $readiness = (new OperationalAccountingReadiness)->for($this->owner);
         $this->assertFalse($readiness['ready']);
         $this->assertSame([$this->owner->id], $readiness['issues']['inconsistent_integration_metadata']);
-        DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update([
+        $current = (array) DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->first();
+        DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update($this->completedBindingFixture(array_replace($current, [
             'activated_at' => '2026-10-10 10:00:00', 'scope_reviewed_at' => '2026-10-10 10:00:00',
-        ]);
+        ])));
         $this->assertTrue((new OperationalAccountingReadiness)->for($this->owner)['ready']);
-        DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update([
-            'state' => 'reconciling', 'historical_transaction_strategy' => null,
-        ]);
+        // Separate draft fixture: never demote an active owner into legacy posting.
+        DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->delete();
+        $this->integration('balance_only', 0, 'reconciling', ['historical_transaction_strategy' => null]);
         $readiness = (new OperationalAccountingReadiness)->for($this->owner);
         $this->assertFalse($readiness['ready']);
         $this->assertSame([$this->owner->id], $readiness['issues']['invalid_historical_transaction_strategy']);
@@ -404,14 +416,17 @@ class OperationalAccountingMappingTest extends TestCase
 
     public function test_ready_rejects_blank_evidence_and_active_currency_conflicts(): void
     {
-        $this->integration('balance_only', 0, 'ready', ['reconciliation_reference' => '  ']);
-        $readiness = (new OperationalAccountingReadiness)->for($this->owner);
-        $this->assertFalse($readiness['ready']);
-        $this->assertSame([$this->owner->id], $readiness['issues']['missing_reconciliation_evidence']);
-        DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update([
-            'state' => 'active', 'reconciliation_reference' => 'reviewed', 'accounting_currency' => 'USD',
-            'activated_at' => '2026-10-10 11:00:00',
-        ]);
+        try {
+            DB::table('operational_accounting_integrations')->insert([
+                'user_id' => $this->owner->id, 'state' => 'ready', 'historical_transaction_strategy' => 'balance_only',
+                'transaction_high_water_id' => 0, 'scope_reviewed_at' => '2026-10-10 10:00:00',
+                'reconciliation_reference' => '  ', 'reconciled_at' => '2026-10-10 10:00:00',
+            ]);
+            $this->fail('Blank completion evidence was accepted.');
+        } catch (QueryException $exception) {
+            $this->assertSame(1644, $exception->errorInfo[1]);
+        }
+        $this->integration('balance_only', 0, 'active', ['accounting_currency' => 'USD']);
         $readiness = (new OperationalAccountingReadiness)->for($this->owner);
         $this->assertFalse($readiness['ready']);
         $this->assertSame([$this->owner->id], $readiness['issues']['integration_currency_mismatch']);
@@ -490,7 +505,7 @@ class OperationalAccountingMappingTest extends TestCase
         (new MapOperationalAccount)->execute($this->owner, $this->account->id, $asset);
         $this->scope([$this->account->id], []);
         $this->account->update(['currency' => 'USD']);
-        $this->integration('balance_only', 0, 'ready', ['reconciliation_reference' => ' ']);
+        $this->integration('balance_only', 0, 'reconciling', ['reconciliation_reference' => null]);
         $before = (new OperationalAccountingReadiness)->for($this->owner);
         $this->assertFalse($before['ready']);
         $this->assertSame([$asset], $before['issues']['unreviewed_chart_cash_role_ids']);
@@ -562,12 +577,13 @@ class OperationalAccountingMappingTest extends TestCase
         // Missing readiness metadata is valid during reconciliation, never in ready.
         DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update([
             'state' => 'reconciling', 'transaction_high_water_id' => null,
+            'reconciliation_reference' => null, 'reconciled_at' => null,
         ]);
         $readiness = (new OperationalAccountingReadiness)->for($this->owner);
         $this->assertFalse($readiness['ready']);
         $this->assertSame([$this->owner->id], $readiness['issues']['missing_transaction_high_water']);
         $this->assertSame([], $readiness['issues']['unreconciled_transaction_ids']);
-        $this->assertSame(['missing_transaction_high_water' => [$this->owner->id]], array_filter($readiness['issues']));
+        $this->assertSame(['missing_transaction_high_water' => [$this->owner->id], 'missing_reconciliation_evidence' => [$this->owner->id]], array_filter($readiness['issues']));
         $this->assertNull(DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->value('transaction_high_water_id'));
     }
 
@@ -584,7 +600,8 @@ class OperationalAccountingMappingTest extends TestCase
         $readiness = (new OperationalAccountingReadiness)->for($this->owner);
         $this->assertFalse($readiness['ready']);
         $this->assertSame([], $readiness['issues']['unreviewed_scope']);
-        DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update(['state' => 'ready']);
+        $current = (array) DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->first();
+        DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update($this->completedBindingFixture(array_replace($current, ['state' => 'ready'])));
         $this->assertTrue((new OperationalAccountingReadiness)->for($this->owner)['ready']);
         $this->assertDatabaseCount('operational_accounting_account_scope', 0);
         $this->assertDatabaseCount('operational_accounting_category_scope', 0);

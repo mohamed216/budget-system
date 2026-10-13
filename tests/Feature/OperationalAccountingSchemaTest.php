@@ -13,6 +13,17 @@ class OperationalAccountingSchemaTest extends TestCase
 {
     use RefreshFinancialDatabase;
 
+    public function refreshDatabase(): void
+    {
+        // Original Slice 1 checks are tested independently of 000016's stronger
+        // completed-review requirement; all fixtures roll back before restoration.
+        $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
+        $binding = require database_path('migrations/2026_10_10_000016_bind_operational_reconciliation_reviews.php');
+        $binding->down();
+        $this->beginDatabaseTransaction();
+        $this->beforeApplicationDestroyed(fn () => $binding->up());
+    }
+
     private function rejects(callable $operation, array $codes): void
     {
         try {

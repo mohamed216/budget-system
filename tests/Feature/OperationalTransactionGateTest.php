@@ -18,11 +18,13 @@ use Illuminate\Support\Facades\DB;
 use Mockery;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
+use Tests\Concerns\CreatesCompletedReconciliationBindings;
 use Tests\Concerns\RefreshFinancialDatabase;
 use Tests\TestCase;
 
 class OperationalTransactionGateTest extends TestCase
 {
+    use CreatesCompletedReconciliationBindings;
     use RefreshFinancialDatabase;
 
     private User $owner;
@@ -51,7 +53,7 @@ class OperationalTransactionGateTest extends TestCase
 
     private function gate(string $state, string $strategy = 'balance_only', ?User $owner = null): void
     {
-        DB::table('operational_accounting_integrations')->insert([
+        DB::table('operational_accounting_integrations')->insert($this->completedBindingFixture([
             'user_id' => ($owner ?? $this->owner)->id, 'state' => $state,
             'historical_transaction_strategy' => $strategy, 'accounting_currency' => config('accounting.currency'),
             'transaction_high_water_id' => 0, 'reconciliation_reference' => 'reviewed-evidence',
@@ -59,7 +61,7 @@ class OperationalTransactionGateTest extends TestCase
             // Deliberately populated even for non-active fixtures: this slice must
             // leave this field untouched, not infer or repair activation history.
             'activated_at' => '2026-10-10 11:00:00',
-        ]);
+        ]));
     }
 
     private function integration(): array
@@ -319,7 +321,7 @@ class OperationalTransactionGateTest extends TestCase
         $this->assertDatabaseCount('transactions', 0);
         $this->assertDatabaseCount('operational_accounting_integrations', 1);
         $this->assertDatabaseHas('operational_accounting_integrations', ['user_id' => $other->id,
-            'state' => 'active', 'reconciliation_reference' => 'reviewed-evidence']);
+            'state' => 'active', 'reconciliation_reference' => $this->bindingFixtureReferences[$other->id]]);
         // Another owner's active gate must not block this owner's legitimate create.
         (new PostTransaction)->handle($this->owner, $this->data());
         $this->assertSame('100.10', $this->account->fresh()->balance);
@@ -380,6 +382,7 @@ class OperationalTransactionGateTest extends TestCase
             }
             DB::purge('operational_gate_probe');
             DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->delete();
+            $this->cleanupBindingFixtures([$this->owner->id]);
             DB::table('transactions')->where('user_id', $this->owner->id)->delete();
             DB::table('accounts')->where('user_id', $this->owner->id)->delete();
             DB::table('categories')->where('user_id', $this->owner->id)->delete();
