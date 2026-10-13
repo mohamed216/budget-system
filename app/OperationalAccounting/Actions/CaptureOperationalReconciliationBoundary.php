@@ -5,6 +5,7 @@ namespace App\OperationalAccounting\Actions;
 use App\Accounting\AccountingPeriodLocks;
 use App\Accounting\Exceptions\AccountingConflict;
 use App\Models\User;
+use App\OperationalAccounting\OperationalReconciliationInvalidation;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 
@@ -31,9 +32,9 @@ final class CaptureOperationalReconciliationBoundary
             if ($gate->transaction_high_water_id !== null && (string) $gate->transaction_high_water_id === (string) $boundary) {
                 return (array) $gate;
             }
-            DB::table('operational_accounting_integrations')->where('user_id', $owner->id)->update([
-                'transaction_high_water_id' => $boundary, 'reconciliation_reference' => null,
-                'reconciled_at' => null, 'updated_at' => now(),
+            $changes = (new OperationalReconciliationInvalidation)->changesFor($gate);
+            DB::table('operational_accounting_integrations')->where('user_id', $owner->id)->update($changes + [
+                'transaction_high_water_id' => $boundary, 'updated_at' => now(),
             ]);
 
             return (array) DB::table('operational_accounting_integrations')->where('user_id', $owner->id)->firstOrFail();

@@ -8,6 +8,7 @@ use App\Models\Account;
 use App\Models\Category;
 use App\Models\Transaction;
 use App\Models\User;
+use App\OperationalAccounting\OperationalReconciliationInvalidation;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 
@@ -28,6 +29,7 @@ class PostTransaction
             if ($integration !== null && ! in_array($integration->state, ['legacy', 'reconciling', 'ready'], true)) {
                 throw new AccountingConflict('Legacy transaction posting is unavailable for this integration state.');
             }
+            $changes = (new OperationalReconciliationInvalidation)->changesFor($integration);
 
             $transaction = $user->transactions()->create($data);
             $operator = $data['type'] === 'income' ? '+' : '-';
@@ -44,12 +46,8 @@ class PostTransaction
             // A successful legacy create invalidates completion, never the reviewed
             // participation plan or its captured historical boundary. Demotion and
             // evidence clearing must be one update to retain the ready CHECK rule.
-            if ($integration !== null && ($integration->state === 'ready'
-                || $integration->reconciliation_reference !== null || $integration->reconciled_at !== null)) {
-                $invalidated = DB::table('operational_accounting_integrations')->where('user_id', $user->id)->update([
-                    'state' => $integration->state === 'ready' ? 'reconciling' : $integration->state,
-                    'reconciliation_reference' => null, 'reconciled_at' => null, 'updated_at' => now(),
-                ]);
+            if ($changes !== []) {
+                $invalidated = DB::table('operational_accounting_integrations')->where('user_id', $user->id)->update($changes + ['updated_at' => now()]);
                 if ($invalidated !== 1) {
                     throw new \RuntimeException('Reconciliation evidence was not invalidated.');
                 }

@@ -351,26 +351,73 @@ class OperationalAccountingMappingTest extends TestCase
         $readiness = (new OperationalAccountingReadiness)->for($this->owner);
         $this->assertFalse($readiness['ready']);
         $this->assertSame([$this->account->id], $readiness['issues']['missing_account_mapping_ids']);
-        (new MapOperationalAccount)->execute($this->owner, $this->account->id, $this->chart('ASSET', 'asset'));
-        $this->assertTrue((new OperationalAccountingReadiness)->for($this->owner)['ready']);
+        $integration = DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->firstOrFail();
+        $this->assertSame('ready', $integration->state);
+        $this->assertNotNull($integration->reconciliation_reference);
+        $this->assertNotNull($integration->reconciled_at);
+        $review = (array) DB::table('operational_reconciliation_reviews')->where('user_id', $this->owner->id)
+            ->where('reference', $integration->reconciliation_reference)->firstOrFail();
+        $this->assertSame($this->owner->id, $review['reviewed_by']);
+        $this->assertSame($integration->reconciled_at, $review['completed_at']);
+
+        $asset = $this->chart('ASSET', 'asset');
+        $mapping = (new MapOperationalAccount)->execute($this->owner, $this->account->id, $asset);
+        $this->assertSame($asset, $mapping['chart_account_id']);
+        $this->assertDatabaseHas('operational_account_mappings', [
+            'user_id' => $this->owner->id, 'account_id' => $this->account->id, 'chart_account_id' => $asset,
+        ]);
+        $readiness = (new OperationalAccountingReadiness)->for($this->owner);
+        $this->assertSame([], $readiness['issues']['missing_account_mapping_ids']);
+        $this->assertFalse($readiness['ready']);
+        $this->assertSame(['missing_reconciliation_evidence' => [$this->owner->id]], array_filter($readiness['issues']));
+        $unbound = (array) DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->firstOrFail();
+        $this->assertSame('reconciling', $unbound['state']);
+        $this->assertNull($unbound['reconciliation_reference']);
+        $this->assertNull($unbound['reconciled_at']);
+        $this->assertSame($review, (array) DB::table('operational_reconciliation_reviews')->where('id', $review['id'])->firstOrFail());
+
         $this->scope([], [$this->expense->id]);
         $readiness = (new OperationalAccountingReadiness)->for($this->owner);
         $this->assertFalse($readiness['ready']);
         $this->assertSame([$this->expense->id], $readiness['issues']['missing_category_mapping_ids']);
-        (new MapOperationalCategory)->execute($this->owner, $this->expense->id, $this->chart('EXPENSE', 'expense'), 'operating');
-        $this->assertTrue((new OperationalAccountingReadiness)->for($this->owner)['ready']);
+        $this->assertSame([$this->owner->id], $readiness['issues']['missing_reconciliation_evidence']);
+        $expense = $this->chart('EXPENSE', 'expense');
+        $mapping = (new MapOperationalCategory)->execute($this->owner, $this->expense->id, $expense, 'operating');
+        $this->assertSame($expense, $mapping['chart_account_id']);
+        $this->assertSame('operating', $mapping['cash_flow_activity']);
+        $this->assertSame($this->owner->id, $mapping['reviewed_by']);
+        $this->assertNotNull($mapping['reviewed_at']);
+        $this->assertDatabaseHas('operational_category_mappings', [
+            'user_id' => $this->owner->id, 'category_id' => $this->expense->id,
+            'chart_account_id' => $expense, 'cash_flow_activity' => 'operating', 'reviewed_by' => $this->owner->id,
+        ]);
+        $readiness = (new OperationalAccountingReadiness)->for($this->owner);
+        $this->assertSame([], $readiness['issues']['missing_category_mapping_ids']);
+        $this->assertFalse($readiness['ready']);
+        $this->assertSame(['missing_reconciliation_evidence' => [$this->owner->id]], array_filter($readiness['issues']));
+        $this->assertSame($unbound, (array) DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->firstOrFail());
 
         // A mapping outside scope, even unreviewed, never selects its category.
+        $revenue = $this->chart('REVENUE', 'revenue');
         DB::table('operational_category_mappings')->insert([
             'user_id' => $this->owner->id, 'category_id' => $this->income->id,
-            'chart_account_id' => $this->chart('REVENUE', 'revenue'),
+            'chart_account_id' => $revenue,
+        ]);
+        $this->assertDatabaseHas('operational_category_mappings', [
+            'user_id' => $this->owner->id, 'category_id' => $this->income->id, 'chart_account_id' => $revenue,
+        ]);
+        $this->assertDatabaseMissing('operational_accounting_category_scope', [
+            'user_id' => $this->owner->id, 'category_id' => $this->income->id,
         ]);
         $readiness = (new OperationalAccountingReadiness)->for($this->owner);
         $this->assertSame([], $readiness['issues']['unreviewed_category_mapping_ids']);
-        $this->assertTrue($readiness['ready']);
+        $this->assertFalse($readiness['ready']);
+        $this->assertSame(['missing_reconciliation_evidence' => [$this->owner->id]], array_filter($readiness['issues']));
+        $this->assertSame($unbound, (array) DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->firstOrFail());
         $this->scope([], [$this->income->id]);
         $readiness = (new OperationalAccountingReadiness)->for($this->owner);
         $this->assertSame([$this->income->id], $readiness['issues']['unreviewed_category_mapping_ids']);
+        $this->assertSame([$this->owner->id], $readiness['issues']['missing_reconciliation_evidence']);
         $this->assertFalse($readiness['ready']);
     }
 
