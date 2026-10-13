@@ -9,8 +9,8 @@ use App\Accounting\Actions\DeleteChartAccount;
 use App\Accounting\Actions\DeleteOpeningBalanceDraft;
 use App\Accounting\Actions\PostOpeningBalanceBatch;
 use App\Accounting\Actions\ReverseJournalEntry;
-use App\Accounting\Actions\UpdateOpeningBalanceDraft;
 use App\Accounting\Actions\UpdateChartAccount;
+use App\Accounting\Actions\UpdateOpeningBalanceDraft;
 use App\Accounting\Exceptions\AccountingConflict;
 use App\Models\ChartAccount;
 use App\Models\JournalLine;
@@ -31,7 +31,9 @@ class OpeningBalanceActionTest extends TestCase
     use RefreshFinancialDatabase;
 
     private User $owner;
+
     private ChartAccount $asset;
+
     private ChartAccount $equity;
 
     protected function setUp(): void
@@ -131,7 +133,7 @@ class OpeningBalanceActionTest extends TestCase
         $this->asset->update(['is_active' => false]);
         $this->rejects(fn () => $this->draft(), ValidationException::class);
         $this->asset->update(['is_active' => true]);
-        $this->rejects(fn () => (new CreateOpeningBalanceDraft)->execute($this->owner, '2026-01-15', 'USD' === config('accounting.currency') ? 'SAR' : 'USD', $this->lines()), ValidationException::class);
+        $this->rejects(fn () => (new CreateOpeningBalanceDraft)->execute($this->owner, '2026-01-15', config('accounting.currency') === 'USD' ? 'SAR' : 'USD', $this->lines()), ValidationException::class);
         $this->assertDatabaseCount('opening_balance_batches', 0);
         $this->assertDatabaseCount('opening_balance_lines', 0);
     }
@@ -248,7 +250,7 @@ class OpeningBalanceActionTest extends TestCase
         $this->asset->update(['is_active' => false]);
         $this->rejects(fn () => (new PostOpeningBalanceBatch)->execute($this->owner, $other->id), AccountingConflict::class);
         $this->asset->update(['is_active' => true]);
-        config(['accounting.currency' => 'USD' === config('accounting.currency') ? 'SAR' : 'USD']);
+        config(['accounting.currency' => config('accounting.currency') === 'USD' ? 'SAR' : 'USD']);
         $this->rejects(fn () => (new PostOpeningBalanceBatch)->execute($this->owner, $other->id), AccountingConflict::class);
         $this->assertTrue($other->fresh()->isDraft());
         $this->assertDatabaseCount('journal_entries', 0);
@@ -326,7 +328,7 @@ class OpeningBalanceActionTest extends TestCase
         $this->assertDatabaseCount('journal_lines', 0);
     }
 
-    public function test_post_lock_order_is_owner_period_fiscal_year_batch_lines_accounts_then_journal(): void
+    public function test_post_lock_order_is_owner_guards_integration_scopes_charts_then_opening_sources(): void
     {
         $batch = $this->draft();
         DB::enableQueryLog();
@@ -335,11 +337,27 @@ class OpeningBalanceActionTest extends TestCase
             (new PostOpeningBalanceBatch)->execute($this->owner, $batch->id);
             $locks = array_values(array_filter(DB::getQueryLog(), fn ($query) => str_contains(strtolower($query['query']), 'for update')));
             $this->assertCount(7, $locks);
-            foreach (['users', 'accounting_periods', 'fiscal_year_closes', 'opening_balance_batches', 'opening_balance_lines',
-                'chart_of_accounts', 'journal_entries'] as $index => $table) {
+            foreach (['users', 'accounting_periods', 'fiscal_year_closes', 'operational_accounting_integrations',
+                'chart_of_accounts', 'opening_balance_batches', 'opening_balance_lines'] as $index => $table) {
                 $this->assertStringContainsString($table, $locks[$index]['query']);
             }
-            $this->assertStringContainsString('order by `id` asc', $locks[5]['query']);
+            $this->assertStringContainsString('order by `id` asc', $locks[4]['query']);
+            $this->assertSame([$this->owner->id], $locks[3]['bindings']);
+            $this->assertStringContainsString('order by `id` asc', $locks[6]['query']);
+            $queries = DB::getQueryLog();
+            $integrationIndex = array_search($locks[3], $queries, true);
+            $chartIndex = array_search($locks[4], $queries, true);
+            $shared = array_filter($queries, fn ($q) => str_contains($q['query'], 'lock in share mode'));
+            $this->assertCount(4, $shared);
+            $tables = ['operational_accounting_account_scope', 'operational_accounting_category_scope',
+                'operational_account_mappings', 'operational_category_mappings'];
+            $position = 0;
+            foreach ($shared as $index => $query) {
+                $this->assertStringContainsString('from `'.$tables[$position++].'`', $query['query']);
+                $this->assertSame([$this->owner->id], $query['bindings']);
+                $this->assertGreaterThan($integrationIndex, $index);
+                $this->assertLessThan($chartIndex, $index);
+            }
         } finally {
             DB::disableQueryLog();
             DB::flushQueryLog();
