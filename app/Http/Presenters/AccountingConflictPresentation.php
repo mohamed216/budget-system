@@ -12,6 +12,7 @@ final class AccountingConflictPresentation
     public function pageMutation(AccountingConflict $conflict): string
     {
         return match ($conflict->reason) {
+            AccountingConflictReason::OperationalAssetReserved => 'لا يمكن ترحيل قيد عام يمس حساب أصل محجوز للمحاسبة التشغيلية النشطة.',
             AccountingConflictReason::AccountingPeriodOverlap => 'تتداخل الفترة المحاسبية مع فترة موجودة.',
             AccountingConflictReason::AccountingPeriodState => 'لا يمكن تنفيذ العملية على هذه الفترة المحاسبية في حالتها الحالية.',
             AccountingConflictReason::JournalDraftStale => 'تغيرت نسخة مسودة القيد. أعد تحميلها قبل الحفظ.',

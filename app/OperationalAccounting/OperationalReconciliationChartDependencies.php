@@ -12,23 +12,36 @@ final class OperationalReconciliationChartDependencies
     /** Integration stage, before charts: return chart IDs selected by explicit scopes only. */
     public function lockParticipation(int $ownerId): array
     {
+        return $this->lockParticipationWithAccountTargets($ownerId)['chart_targets'];
+    }
+
+    /**
+     * Lock the same ordered participation rows once, retaining account-only authority.
+     *
+     * @return array{chart_targets: array<int, true>, account_chart_targets: array<int, true>}
+     */
+    public function lockParticipationWithAccountTargets(int $ownerId): array
+    {
         $scopes = [];
         foreach (['account', 'category'] as $kind) {
             $scopes[$kind] = DB::table('operational_accounting_'.$kind.'_scope')->where('user_id', $ownerId)
                 ->orderBy($kind.'_id')->sharedLock()->pluck($kind.'_id')->mapWithKeys(fn ($id) => [$id => true])->all();
         }
-        $targets = [];
+        $targets = ['account' => [], 'category' => []];
         foreach (['account', 'category'] as $kind) {
             $mappings = DB::table('operational_'.$kind.'_mappings')->where('user_id', $ownerId)
                 ->orderBy($kind.'_id')->sharedLock()->get([$kind.'_id', 'chart_account_id']);
             foreach ($mappings as $mapping) {
                 if (isset($scopes[$kind][$mapping->{$kind.'_id'}])) {
-                    $targets[$mapping->chart_account_id] = true;
+                    $targets[$kind][$mapping->chart_account_id] = true;
                 }
             }
         }
 
-        return $targets;
+        return [
+            'chart_targets' => $targets['account'] + $targets['category'],
+            'account_chart_targets' => $targets['account'],
+        ];
     }
 
     /** After charts: headers before lines. No snapshot-based candidate/negative-exists decisions. */

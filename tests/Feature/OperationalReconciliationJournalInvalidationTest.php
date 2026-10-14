@@ -167,7 +167,7 @@ class OperationalReconciliationJournalInvalidationTest extends TestCase
             $this->mutate($f, $operation, $journal);
             $this->fail('Active reconciliation was invalidated.');
         } catch (AccountingConflict $e) {
-            $this->assertSame(AccountingConflictReason::ReconciliationState, $e->reason);
+            $this->assertSame($operation === 'post' ? AccountingConflictReason::OperationalAssetReserved : AccountingConflictReason::ReconciliationState, $e->reason);
         }
         $this->assertSame($before, $this->allFixtureRows($f['owner']->id));
         $unrelated = $this->draftJournal($f, $this->unrelatedChart($f));

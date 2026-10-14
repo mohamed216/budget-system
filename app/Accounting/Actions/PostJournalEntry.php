@@ -11,6 +11,7 @@ use App\Accounting\PeriodGuard;
 use App\Models\ChartAccount;
 use App\Models\JournalEntry;
 use App\Models\User;
+use App\OperationalAccounting\OperationalAssetReservation;
 use App\OperationalAccounting\OperationalReconciliationChartDependencies;
 use App\OperationalAccounting\OperationalReconciliationHistoryDependencies;
 use App\OperationalAccounting\OperationalReconciliationInvalidation;
@@ -55,7 +56,7 @@ final class PostJournalEntry
                 }
             }
             $integration = DB::table('operational_accounting_integrations')->where('user_id', $actor->id)->lockForUpdate()->first();
-            (new OperationalReconciliationChartDependencies)->lockParticipation($actor->id);
+            $participation = (new OperationalReconciliationChartDependencies)->lockParticipationWithAccountTargets($actor->id);
             $accounts = ChartAccount::ownedBy($actor)->whereIn('id', $ids)->orderBy('id')->lockForUpdate()->get();
             $journal = JournalEntry::ownedBy($actor)->whereKey($journalId)->lockForUpdate()->firstOrFail();
             if ($journal->isPosted()) {
@@ -77,6 +78,11 @@ final class PostJournalEntry
             $currentIds = $lines->pluck('chart_account_id')->unique()->sort()->values()->all();
             if (array_map('strval', $currentIds) !== array_map('strval', $ids)) {
                 throw new AccountingConflict('Journal chart sources changed; rediscovery required.', reason: AccountingConflictReason::ReconciliationDiscoveryConflict);
+            }
+            if ((new OperationalAssetReservation)->touchesReservedAsset($actor->id, $integration?->state,
+                $participation['account_chart_targets'], $accounts)) {
+                throw new AccountingConflict('Generic journal posting cannot touch an ACTIVE reserved operational asset.',
+                    reason: AccountingConflictReason::OperationalAssetReserved);
             }
             if ($lines->count() < 2) {
                 throw new AccountingConflict('Posting requires at least two journal lines.');
