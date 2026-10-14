@@ -60,8 +60,10 @@ final class AccountingConflictPresentation
 
     public function openingBalancePost(AccountingConflict $conflict): string
     {
-        return $this->dateLockMessage($conflict)
-            ?? 'تعذر ترحيل الأرصدة الافتتاحية. تحقق من العملة والحسابات النشطة وتوازن السطور.';
+        return $this->dateLockMessage($conflict) ?? match ($conflict->reason) {
+            AccountingConflictReason::OperationalAssetReserved => 'لا يمكن ترحيل أرصدة افتتاحية تمس حساب أصل محجوز للمحاسبة التشغيلية النشطة.',
+            default => 'تعذر ترحيل الأرصدة الافتتاحية. تحقق من العملة والحسابات النشطة وتوازن السطور.',
+        };
     }
 
     public function fiscalYearClose(AccountingConflict $conflict): string

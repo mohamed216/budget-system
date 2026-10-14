@@ -12,6 +12,7 @@ use App\Models\JournalEntry;
 use App\Models\JournalLine;
 use App\Models\OpeningBalanceBatch;
 use App\Models\User;
+use App\OperationalAccounting\OperationalAssetReservation;
 use App\OperationalAccounting\OperationalReconciliationChartDependencies;
 use App\OperationalAccounting\OperationalReconciliationHistoryDependencies;
 use App\OperationalAccounting\OperationalReconciliationInvalidation;
@@ -56,7 +57,7 @@ final class PostOpeningBalanceBatch
                 }
             }
             $integration = DB::table('operational_accounting_integrations')->where('user_id', $actor->id)->lockForUpdate()->first();
-            (new OperationalReconciliationChartDependencies)->lockParticipation($actor->id);
+            $participation = (new OperationalReconciliationChartDependencies)->lockParticipationWithAccountTargets($actor->id);
             $accounts = ChartAccount::ownedBy($actor)->whereIn('id', $accountIds)->orderBy('id')->lockForUpdate()->get();
             $linkedJournal = $linkedId === null ? null
                 : JournalEntry::ownedBy($actor)->whereKey($linkedId)->lockForUpdate()->first();
@@ -85,6 +86,11 @@ final class PostOpeningBalanceBatch
                 throw $periodConflict;
             }
 
+            if ((new OperationalAssetReservation)->touchesReservedAsset($actor->id, $integration?->state,
+                $participation['account_chart_targets'], $accounts)) {
+                throw new AccountingConflict('Opening balance posting cannot touch an ACTIVE reserved operational asset.',
+                    reason: AccountingConflictReason::OperationalAssetReserved);
+            }
             if ($batch->currency !== config('accounting.currency')) {
                 throw new AccountingConflict('Opening balance currency must match the configured accounting currency.');
             }

@@ -20,6 +20,9 @@ class AccountingConflictPresentationTest extends TestCase
         $this->assertSame('تاريخ الافتتاح يقع ضمن سنة مالية مقفلة نهائياً.', $presenter->openingBalanceDraft($fiscal));
         $this->assertSame('لا يمكن تعديل أرصدة افتتاحية تم ترحيلها.', $presenter->openingBalanceDraft($posted));
         $this->assertSame('تاريخ الافتتاح يقع ضمن سنة مالية مقفلة نهائياً.', $presenter->openingBalancePost($fiscal));
+        $reserved = new AccountingConflict('Unrelated message', reason: AccountingConflictReason::OperationalAssetReserved);
+        $this->assertSame('لا يمكن ترحيل أرصدة افتتاحية تمس حساب أصل محجوز للمحاسبة التشغيلية النشطة.', $presenter->openingBalancePost($reserved));
+        $this->assertSame('لا يمكن ترحيل قيد عام يمس حساب أصل محجوز للمحاسبة التشغيلية النشطة.', $presenter->pageMutation($reserved));
     }
 
     public function test_unknown_conflicts_use_safe_contextual_fallbacks(): void

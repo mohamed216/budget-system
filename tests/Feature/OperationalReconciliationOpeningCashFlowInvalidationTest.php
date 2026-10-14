@@ -202,7 +202,7 @@ class OperationalReconciliationOpeningCashFlowInvalidationTest extends TestCase
             $this->performC2Mutation($f, $kind);
             $this->fail('Active binding changed.');
         } catch (AccountingConflict $e) {
-            $this->assertSame(AccountingConflictReason::ReconciliationState, $e->reason);
+            $this->assertSame($kind === 'opening' ? AccountingConflictReason::OperationalAssetReserved : AccountingConflictReason::ReconciliationState, $e->reason);
         }
         $this->assertSame($before, $this->allFixtureRows($f['owner']->id));
         if ($kind === 'opening') {
