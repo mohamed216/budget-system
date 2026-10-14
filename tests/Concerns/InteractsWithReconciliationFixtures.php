@@ -199,6 +199,29 @@ try {
         $result = (new App\Accounting\Actions\UpdateChartAccount)->execute($owner, $chart->id, $chart->code, $chart->name, $chart->type, false, $chart->parent_id)->id;
     } elseif ($input['operation'] === 'post-journal') {
         $result = (new App\Accounting\Actions\PostJournalEntry)->execute($owner, $input['history_journal'])->id;
+    } elseif ($input['operation'] === 'link-operational-journal') {
+        // Isolated fixture mutation only, not an integrated posting action.
+        $result = Illuminate\Support\Facades\DB::transaction(function () use ($owner, $input) {
+            App\Accounting\AccountingPeriodLocks::owner($owner);
+            (new App\Accounting\PeriodGuard)->assertOpen($owner, '2026-10-06');
+            $db = Illuminate\Support\Facades\DB::connection();
+            $db->table('fiscal_year_closes')->where('user_id', $owner->id)->where('journal_entry_id', $input['history_journal'])->lockForUpdate()->first(['id']);
+            $db->table('accounts')->where('user_id', $owner->id)->where('id', $input['data']['account_id'])->lockForUpdate()->first();
+            $db->table('categories')->where('user_id', $owner->id)->where('id', $input['data']['category_id'])->lockForUpdate()->first();
+            $db->table('operational_accounting_integrations')->where('user_id', $owner->id)->lockForUpdate()->first();
+            $targets = (new App\OperationalAccounting\OperationalReconciliationChartDependencies)->lockParticipation($owner->id);
+            $db->table('chart_of_accounts')->where('user_id', $owner->id)->whereIn('id', array_keys($targets))->orderBy('id')->lockForUpdate()->get();
+            $db->table('transactions')->where('user_id', $owner->id)->where('id', $input['transaction_id'])->lockForUpdate()->first();
+            $db->table('journal_entries')->where('user_id', $owner->id)->where('id', $input['history_journal'])->lockForUpdate()->first();
+            $db->table('journal_lines')->where('user_id', $owner->id)->where('journal_entry_id', $input['history_journal'])->orderBy('id')->lockForUpdate()->get();
+            $db->table('journal_line_allocations')->where('user_id', $owner->id)->where('journal_entry_id', $input['history_journal'])->orderBy('id')->sharedLock()->get();
+            $db->table('cash_flow_journal_completions')->where('user_id', $owner->id)->where('journal_entry_id', $input['history_journal'])->sharedLock()->first();
+            $db->table('opening_balance_batches')->where('user_id', $owner->id)->where('journal_entry_id', $input['history_journal'])->sharedLock()->first();
+            $db->table('operational_transaction_journals')->where('user_id', $owner->id)->where('journal_entry_id', $input['history_journal'])->sharedLock()->first();
+            $db->table('operational_transaction_journals')->insert(['user_id' => $owner->id, 'transaction_id' => $input['transaction_id'],
+                'journal_entry_id' => $input['history_journal'], 'account_id' => $input['data']['account_id'], 'category_id' => $input['data']['category_id']]);
+            return $input['history_journal'];
+        });
     } elseif ($input['operation'] === 'reverse-journal') {
         $result = (new App\Accounting\Actions\ReverseJournalEntry)->execute($owner, $input['history_journal'])->id;
     } elseif ($input['operation'] === 'post-opening') {
@@ -226,7 +249,7 @@ PHP;
         stream_set_blocking($pipes[2], false);
         fwrite($pipes[0], json_encode(['connection' => config('database.connections.mysql_testing'), 'owner' => $f['owner']->id,
             'reference' => $f['reference'], 'review' => $f['review'], 'digest' => $f['digest'], 'operation' => $operation,
-            'mapping_target' => $f['mapping_target'] ?? null, 'chart_target' => $f['chart_target'] ?? null, 'history_journal' => $f['history_journal'] ?? null,
+            'transaction_id' => $f['transaction'] ?? null, 'mapping_target' => $f['mapping_target'] ?? null, 'chart_target' => $f['chart_target'] ?? null, 'history_journal' => $f['history_journal'] ?? null,
             'opening_batch' => $f['opening_batch'] ?? null, 'history_allocations' => $f['history_allocations'] ?? [],
             'fiscal_start' => $f['fiscal_start'] ?? null, 'fiscal_end' => $f['fiscal_end'] ?? null, 'retained_account' => $f['retained_account'] ?? null,
             'data' => $this->postingData($f)], JSON_THROW_ON_ERROR)."\n");

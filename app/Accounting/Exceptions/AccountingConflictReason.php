@@ -5,6 +5,7 @@ namespace App\Accounting\Exceptions;
 enum AccountingConflictReason
 {
     case OperationalAssetReserved;
+    case OperationalJournalLinked;
     case ReconciliationState;
     case ReconciliationAlreadyCompleted;
     case ReconciliationSnapshotStale;

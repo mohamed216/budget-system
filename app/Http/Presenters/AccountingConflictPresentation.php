@@ -12,6 +12,7 @@ final class AccountingConflictPresentation
     public function pageMutation(AccountingConflict $conflict): string
     {
         return match ($conflict->reason) {
+            AccountingConflictReason::OperationalJournalLinked => 'لا يمكن عكس القيود المرتبطة بمعاملات تشغيلية من خلال إجراء العكس العام.',
             AccountingConflictReason::OperationalAssetReserved => 'لا يمكن ترحيل قيد عام يمس حساب أصل محجوز للمحاسبة التشغيلية النشطة.',
             AccountingConflictReason::AccountingPeriodOverlap => 'تتداخل الفترة المحاسبية مع فترة موجودة.',
             AccountingConflictReason::AccountingPeriodState => 'لا يمكن تنفيذ العملية على هذه الفترة المحاسبية في حالتها الحالية.',

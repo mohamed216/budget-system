@@ -167,7 +167,7 @@ class OperationalReconciliationJournalInvalidationTest extends TestCase
             $this->mutate($f, $operation, $journal);
             $this->fail('Active reconciliation was invalidated.');
         } catch (AccountingConflict $e) {
-            $this->assertSame($operation === 'post' ? AccountingConflictReason::OperationalAssetReserved : AccountingConflictReason::ReconciliationState, $e->reason);
+            $this->assertSame(AccountingConflictReason::OperationalAssetReserved, $e->reason);
         }
         $this->assertSame($before, $this->allFixtureRows($f['owner']->id));
         $unrelated = $this->draftJournal($f, $this->unrelatedChart($f));
@@ -647,7 +647,7 @@ class OperationalReconciliationJournalInvalidationTest extends TestCase
         $this->assertEquals($gate, DB::table('operational_accounting_integrations')->where('user_id', $f['owner']->id)->first());
     }
 
-    public function test_category_target_post_and_backfill_member_reversal_are_relevant(): void
+    public function test_category_target_post_is_relevant_but_linked_backfill_reversal_rejects(): void
     {
         $f = $this->boundFixture('historical_backfill');
         $before = $this->allFixtureRows($f['owner']->id);
@@ -657,8 +657,13 @@ class OperationalReconciliationJournalInvalidationTest extends TestCase
         $other = $this->boundFixture('historical_backfill');
         $before = $this->allFixtureRows($other['owner']->id);
         $link = DB::table('operational_transaction_journals')->where('transaction_id', $other['transaction'])->first();
-        (new ReverseJournalEntry)->execute($other['owner'], $other['journal']);
-        $this->assertCleared($other, $before);
+        try {
+            (new ReverseJournalEntry)->execute($other['owner'], $other['journal']);
+            $this->fail('Linked backfill journal reversed through the generic action.');
+        } catch (AccountingConflict $exception) {
+            $this->assertSame(AccountingConflictReason::OperationalJournalLinked, $exception->reason);
+        }
+        $this->assertSame($before, $this->allFixtureRows($other['owner']->id));
         $this->assertEquals($link, DB::table('operational_transaction_journals')->where('transaction_id', $other['transaction'])->first());
     }
 }

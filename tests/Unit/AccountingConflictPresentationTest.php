@@ -70,6 +70,8 @@ class AccountingConflictPresentationTest extends TestCase
             $presenter->pageMutation(new AccountingConflict($raw, reason: AccountingConflictReason::JournalDraftStale)));
         $this->assertSame('لا يمكن عكس هذا القيد؛ يجب أن يكون قيداً أصلياً مرحلاً ولم يُعكس من قبل.',
             $presenter->pageMutation(new AccountingConflict($raw, reason: AccountingConflictReason::JournalReversalIneligible)));
+        $this->assertSame('لا يمكن عكس القيود المرتبطة بمعاملات تشغيلية من خلال إجراء العكس العام.',
+            $presenter->pageMutation(new AccountingConflict($raw, reason: AccountingConflictReason::OperationalJournalLinked)));
         $this->assertSame('تعذر إتمام العملية المحاسبية.',
             $presenter->pageMutation(new AccountingConflict($raw)));
     }

@@ -290,15 +290,43 @@ class JournalPeriodGuardTest extends TestCase
             $this->assertNotFalse($integrationIndex);
             $this->assertNotFalse($chartIndex);
             $shared = array_filter($queries, fn ($q) => str_contains(strtolower($q['query']), 'lock in share mode'));
-            $this->assertCount(4, $shared);
             $scopeTables = ['operational_accounting_account_scope', 'operational_accounting_category_scope',
                 'operational_account_mappings', 'operational_category_mappings'];
+            $participation = array_filter($shared, fn ($q) => ! str_contains($q['query'], 'from `operational_transaction_journals`'));
+            $this->assertCount(count($scopeTables), $participation);
             $position = 0;
-            foreach ($shared as $index => $query) {
+            foreach ($participation as $index => $query) {
                 $this->assertStringContainsString('from `'.$scopeTables[$position++].'`', $query['query']);
                 $this->assertSame([$owner->id], $query['bindings']);
                 $this->assertGreaterThan($integrationIndex, $index);
                 $this->assertLessThan($chartIndex, $index);
+            }
+
+            $operationalReads = array_filter($queries, fn ($q) => str_contains($q['query'], 'from `operational_transaction_journals`'));
+            $this->assertCount(1, $operationalReads);
+            $linkIndex = array_key_first($operationalReads);
+            $link = $operationalReads[$linkIndex];
+            $this->assertSame('select `transaction_id` from `operational_transaction_journals` where `user_id` = ? and `journal_entry_id` = ? limit 1 lock in share mode',
+                strtolower($link['query']));
+            $this->assertSame([$owner->id, $original->id], $link['bindings']);
+            foreach (array_slice($locks, 0, 11) as $earlierLock) {
+                $earlierIndex = array_search($earlierLock, $queries, true);
+                $this->assertNotFalse($earlierIndex);
+                $this->assertGreaterThan($earlierIndex, $linkIndex);
+            }
+            foreach (array_keys($participation) as $earlierIndex) {
+                $this->assertGreaterThan($earlierIndex, $linkIndex);
+            }
+            $creationWrites = array_filter($queries, fn ($q) => str_starts_with(strtolower($q['query']), 'insert into `journal_entries`')
+                || str_starts_with(strtolower($q['query']), 'insert into `journal_lines`'));
+            $this->assertCount(3, $creationWrites, 'One reversal header and two lines must follow provenance validation.');
+            foreach (array_keys($creationWrites) as $writeIndex) {
+                $this->assertGreaterThan($linkIndex, $writeIndex);
+            }
+            foreach ($queries as $index => $query) {
+                if (str_contains(strtolower($query['query']), 'operational_reconciliation_')) {
+                    $this->assertGreaterThan($linkIndex, $index, 'Evidence/review reads must follow the operational link probe.');
+                }
             }
 
             $this->assertNull(DB::table('operational_accounting_integrations')->where('user_id', $owner->id)->first(),

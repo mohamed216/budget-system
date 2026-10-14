@@ -13,6 +13,7 @@ use App\Models\FiscalYearClose;
 use App\Models\JournalEntry;
 use App\Models\JournalLine;
 use App\Models\User;
+use App\OperationalAccounting\OperationalAssetReservation;
 use App\OperationalAccounting\OperationalReconciliationChartDependencies;
 use App\OperationalAccounting\OperationalReconciliationHistoryDependencies;
 use App\OperationalAccounting\OperationalReconciliationInvalidation;
@@ -64,7 +65,7 @@ final class ReverseJournalEntry
                 throw new AccountingConflict('Fiscal-year closing journals cannot be reversed through the generic reversal action.');
             }
             $integration = DB::table('operational_accounting_integrations')->where('user_id', $actor->id)->lockForUpdate()->first();
-            (new OperationalReconciliationChartDependencies)->lockParticipation($actor->id);
+            $participation = (new OperationalReconciliationChartDependencies)->lockParticipationWithAccountTargets($actor->id);
             $accounts = ChartAccount::ownedBy($actor)->whereIn('id', $accountIds)->orderBy('id')->lockForUpdate()->get();
             // Current-read the original and the reversal uniqueness range together,
             // in ID order. Candidate negative existence is never authoritative.
@@ -129,6 +130,17 @@ final class ReverseJournalEntry
             // consistent-read exists() that can hide a committed special link.
             $isOpeningBalance = DB::table('opening_balance_batches')->where('user_id', $actor->id)
                 ->where('journal_entry_id', $original->id)->orderBy('id')->lockForUpdate()->first() !== null;
+            $operationalLink = DB::table('operational_transaction_journals')->where('user_id', $actor->id)
+                ->where('journal_entry_id', $original->id)->sharedLock()->first(['transaction_id']);
+            if ($operationalLink !== null) {
+                throw new AccountingConflict('Integrated operational journals cannot be reversed through the generic reversal action.',
+                    reason: AccountingConflictReason::OperationalJournalLinked);
+            }
+            if ((new OperationalAssetReservation)->touchesReservedAsset($actor->id, $integration?->state,
+                $participation['account_chart_targets'], $accounts)) {
+                throw new AccountingConflict('Generic journal reversal cannot touch an ACTIVE reserved operational asset.',
+                    reason: AccountingConflictReason::OperationalAssetReserved);
+            }
             if (! $isOpeningBalance) {
                 $validator = new CashFlowAllocationValidator;
                 $originalAllocations = $validator->fromPersisted($allocationRows);
