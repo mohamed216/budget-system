@@ -5,17 +5,20 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Tests\Concerns\InteractsWithActiveProtectionTriggers;
 use Tests\Concerns\InteractsWithEvidenceProtectionTriggers;
 use Tests\TestCase;
 
 class OperationalReconciliationEvidenceMigrationTest extends TestCase
 {
+    use InteractsWithActiveProtectionTriggers;
     use InteractsWithEvidenceProtectionTriggers;
 
     private function migrations(): array
     {
         $this->assertSame(0, DB::transactionLevel(), 'DDL tests require the isolated database without transactional fixtures.');
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
+        $this->activeProtectionMigration()->down();
         $binding = require database_path('migrations/2026_10_10_000016_bind_operational_reconciliation_reviews.php');
         $binding->down();
         // Exercise foundation rollback without its later protection dependency.
@@ -28,6 +31,7 @@ class OperationalReconciliationEvidenceMigrationTest extends TestCase
             $protection->up();
             $this->assertProtectionTriggersInstalledExactly();
             $binding->up();
+            $this->restoreActiveProtectionTriggers();
         });
         $migrations = [];
         foreach (range(9, 14) as $number) {

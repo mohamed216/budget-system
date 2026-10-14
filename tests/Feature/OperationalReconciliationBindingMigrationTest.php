@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\CreatesCompletedReconciliationBindings;
+use Tests\Concerns\InteractsWithActiveProtectionTriggers;
 use Tests\Concerns\InteractsWithEvidenceProtectionTriggers;
 use Tests\TestCase;
 use Throwable;
@@ -16,6 +17,7 @@ use Throwable;
 class OperationalReconciliationBindingMigrationTest extends TestCase
 {
     use CreatesCompletedReconciliationBindings;
+    use InteractsWithActiveProtectionTriggers;
     use InteractsWithEvidenceProtectionTriggers;
 
     private array $ownerIds = [];
@@ -25,6 +27,8 @@ class OperationalReconciliationBindingMigrationTest extends TestCase
         parent::setUp();
         $this->assertSame(0, DB::transactionLevel());
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
+        // Later guards must be removed before exercising the earlier binding rollback.
+        $this->activeProtectionMigration()->down();
         $this->assertProtectionTriggersInstalledExactly();
     }
 
@@ -58,6 +62,7 @@ class OperationalReconciliationBindingMigrationTest extends TestCase
                 $migration->up();
             }
             $this->assertProtectionTriggersInstalledExactly();
+            $this->restoreActiveProtectionTriggers();
         } catch (Throwable $exception) {
             $failure = $exception;
         } finally {

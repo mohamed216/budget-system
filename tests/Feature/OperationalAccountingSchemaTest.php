@@ -6,11 +6,13 @@ use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Tests\Concerns\InteractsWithActiveProtectionTriggers;
 use Tests\Concerns\RefreshFinancialDatabase;
 use Tests\TestCase;
 
 class OperationalAccountingSchemaTest extends TestCase
 {
+    use InteractsWithActiveProtectionTriggers;
     use RefreshFinancialDatabase;
 
     public function refreshDatabase(): void
@@ -18,10 +20,15 @@ class OperationalAccountingSchemaTest extends TestCase
         // Original Slice 1 checks are tested independently of 000016's stronger
         // completed-review requirement; all fixtures roll back before restoration.
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
+        $active = $this->activeProtectionMigration();
+        $active->down();
         $binding = require database_path('migrations/2026_10_10_000016_bind_operational_reconciliation_reviews.php');
         $binding->down();
         $this->beginDatabaseTransaction();
-        $this->beforeApplicationDestroyed(fn () => $binding->up());
+        $this->beforeApplicationDestroyed(function () use ($binding, $active): void {
+            $binding->up();
+            $active->up();
+        });
     }
 
     private function rejects(callable $operation, array $codes): void

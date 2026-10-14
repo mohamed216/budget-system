@@ -276,18 +276,15 @@ class OperationalAccountingMappingTest extends TestCase
         $this->assertFalse($readiness['ready']);
         $this->assertSame([$historical], $readiness['issues']['unreconciled_transaction_ids']);
         $this->assertNotContains($aboveBoundary, $readiness['issues']['unreconciled_transaction_ids']);
-        foreach (['ready', 'active'] as $state) {
-            DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update([
-                'state' => $state, 'accounting_currency' => config('accounting.currency'),
-                'activated_at' => $state === 'active' ? '2026-10-10 11:00:00' : null,
-            ]);
-            $this->assertFalse((new OperationalAccountingReadiness)->for($this->owner)['ready'], $state);
-        }
-
+        // Historical posting belongs before cutover; D1 closes asset publication afterward.
         $this->linkIncome($historical, $asset, $revenue);
         $readiness = (new OperationalAccountingReadiness)->for($this->owner);
         $this->assertSame([], $readiness['issues']['unreconciled_transaction_ids']);
         $this->assertTrue($readiness['ready']);
+        DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update([
+            'state' => 'active', 'activated_at' => '2026-10-10 11:00:00',
+        ]);
+        $this->assertTrue((new OperationalAccountingReadiness)->for($this->owner)['ready']);
     }
 
     public function test_balance_only_legacy_rows_need_no_links_or_category_mappings_and_readiness_is_read_only(): void
@@ -437,24 +434,27 @@ class OperationalAccountingMappingTest extends TestCase
             ])));
             $this->assertSame($state !== 'reconciling', (new OperationalAccountingReadiness)->for($this->owner)['ready'], $state);
         }
-        DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update(['activated_at' => '2026-10-10 09:00:00']);
+        // Readiness diagnostics may inspect synthetic invalid initial metadata,
+        // but may no longer corrupt an existing immutable ACTIVE cutover.
+        $this->owner = User::factory()->create();
+        $this->integration('balance_only', 0, 'active', ['activated_at' => '2026-10-10 09:00:00']);
         $readiness = (new OperationalAccountingReadiness)->for($this->owner);
         $this->assertFalse($readiness['ready']);
         $this->assertSame([$this->owner->id], $readiness['issues']['inconsistent_integration_metadata']);
-        $current = (array) DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->first();
-        DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update($this->completedBindingFixture(array_replace($current, [
+        $this->owner = User::factory()->create();
+        $this->integration('balance_only', 0, 'active', [
             'activated_at' => '2026-10-10 11:00:00', 'scope_reviewed_at' => '2026-10-10 12:00:00',
-        ])));
+        ]);
         $readiness = (new OperationalAccountingReadiness)->for($this->owner);
         $this->assertFalse($readiness['ready']);
         $this->assertSame([$this->owner->id], $readiness['issues']['inconsistent_integration_metadata']);
-        $current = (array) DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->first();
-        DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->update($this->completedBindingFixture(array_replace($current, [
+        $this->owner = User::factory()->create();
+        $this->integration('balance_only', 0, 'active', [
             'activated_at' => '2026-10-10 10:00:00', 'scope_reviewed_at' => '2026-10-10 10:00:00',
-        ])));
+        ]);
         $this->assertTrue((new OperationalAccountingReadiness)->for($this->owner)['ready']);
         // Separate draft fixture: never demote an active owner into legacy posting.
-        DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->delete();
+        $this->owner = User::factory()->create();
         $this->integration('balance_only', 0, 'reconciling', ['historical_transaction_strategy' => null]);
         $readiness = (new OperationalAccountingReadiness)->for($this->owner);
         $this->assertFalse($readiness['ready']);

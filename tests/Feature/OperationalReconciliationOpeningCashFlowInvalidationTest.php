@@ -53,13 +53,16 @@ class OperationalReconciliationOpeningCashFlowInvalidationTest extends TestCase
         $f = $this->boundFixture();
         if ($state === 'ready') {
             (new MarkOperationalAccountingReady)->execute($f['owner']);
-        } elseif ($state === 'active') {
-            DB::table('operational_accounting_integrations')->where('user_id', $f['owner']->id)
-                ->update(['state' => 'active', 'activated_at' => now()]);
         }
         // Explicit external staleness, AFTER genuine completion/READY validation.
         // Never approve incomplete ordinary cash history through those actions.
         DB::table('chart_of_accounts')->where('id', $f['charts']['asset'])->update(['cash_role' => 'cash']);
+        if ($state === 'active') {
+            // Establish this deliberately stale fixture before ACTIVE freezes
+            // participating chart semantics; the action still runs while ACTIVE.
+            DB::table('operational_accounting_integrations')->where('user_id', $f['owner']->id)
+                ->update(['state' => 'active', 'activated_at' => now()]);
+        }
         $f['history_journal'] = $f['journal'];
         $f['history_allocations'] = $this->cashAllocations($f, $f['journal']);
 

@@ -7,12 +7,14 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Tests\Concerns\InteractsWithActiveProtectionTriggers;
 use Tests\Concerns\InteractsWithEvidenceProtectionTriggers;
 use Tests\Concerns\RefreshFinancialDatabase;
 use Tests\TestCase;
 
 class OperationalReconciliationEvidenceSchemaTest extends TestCase
 {
+    use InteractsWithActiveProtectionTriggers;
     use InteractsWithEvidenceProtectionTriggers;
     use RefreshFinancialDatabase;
 
@@ -23,6 +25,7 @@ class OperationalReconciliationEvidenceSchemaTest extends TestCase
         // This suite tests 000009-000014 independently of the later trigger layer.
         // DDL occurs before fixtures and protections are restored after rollback.
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
+        $this->activeProtectionMigration()->down();
         $binding = require database_path('migrations/2026_10_10_000016_bind_operational_reconciliation_reviews.php');
         $binding->down();
         $protection = require database_path('migrations/2026_10_10_000015_protect_operational_reconciliation_evidence.php');
@@ -43,6 +46,7 @@ class OperationalReconciliationEvidenceSchemaTest extends TestCase
             $protection->up();
             $this->assertProtectionTriggersInstalledExactly();
             $binding->up();
+            $this->restoreActiveProtectionTriggers();
         });
     }
 

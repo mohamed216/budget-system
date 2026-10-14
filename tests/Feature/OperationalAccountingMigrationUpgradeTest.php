@@ -5,11 +5,13 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Tests\Concerns\InteractsWithActiveProtectionTriggers;
 use Tests\Concerns\InteractsWithEvidenceProtectionTriggers;
 use Tests\TestCase;
 
 class OperationalAccountingMigrationUpgradeTest extends TestCase
 {
+    use InteractsWithActiveProtectionTriggers;
     use InteractsWithEvidenceProtectionTriggers;
 
     public function test_schema_upgrade_does_not_claim_or_populate_existing_operational_data(): void
@@ -17,6 +19,7 @@ class OperationalAccountingMigrationUpgradeTest extends TestCase
         // MySQL DDL commits implicitly. Use only the isolated test database and no transactional fixtures.
         $this->assertSame(0, DB::transactionLevel());
         $this->artisan('migrate', ['--force' => true])->assertExitCode(0);
+        $this->activeProtectionMigration()->down();
         $binding = require database_path('migrations/2026_10_10_000016_bind_operational_reconciliation_reviews.php');
         $binding->down();
         // Establish the unprotected EMPTY foundation before any upgrade fixture.
@@ -37,6 +40,7 @@ class OperationalAccountingMigrationUpgradeTest extends TestCase
                 ->where('TRIGGER_NAME', 'oai_review_bi')->exists()) {
                 $binding->up();
             }
+            $this->restoreActiveProtectionTriggers();
         });
         $owner = User::factory()->create();
         $account = DB::table('accounts')->insertGetId([

@@ -19,12 +19,14 @@ use Mockery;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Tests\Concerns\CreatesCompletedReconciliationBindings;
+use Tests\Concerns\InteractsWithActiveProtectionTriggers;
 use Tests\Concerns\RefreshFinancialDatabase;
 use Tests\TestCase;
 
 class OperationalTransactionGateTest extends TestCase
 {
     use CreatesCompletedReconciliationBindings;
+    use InteractsWithActiveProtectionTriggers;
     use RefreshFinancialDatabase;
 
     private User $owner;
@@ -381,7 +383,7 @@ class OperationalTransactionGateTest extends TestCase
                 $probe->rollBack();
             }
             DB::purge('operational_gate_probe');
-            DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->delete();
+            $this->withoutActiveIntegrationDeleteGuard(fn () => DB::table('operational_accounting_integrations')->where('user_id', $this->owner->id)->delete());
             $this->cleanupBindingFixtures([$this->owner->id]);
             DB::table('transactions')->where('user_id', $this->owner->id)->delete();
             DB::table('accounts')->where('user_id', $this->owner->id)->delete();

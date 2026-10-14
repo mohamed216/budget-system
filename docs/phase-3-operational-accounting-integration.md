@@ -86,6 +86,28 @@ categories from deletion.
 
 ## 3. Exact invariants
 
+D1 installs additive, closed ACTIVE database protections: cutover identity, explicit
+scopes, participating mappings/classifications, and source/chart accounting semantics
+are protected even before linked use. Participating ACTIVE account balance writes and
+publication touching a reserved mapped operational asset are disabled without any
+authorization exception. Chart inactivity does not release reservation; the database
+allows an `is_active` toggle while future posting must validate active use.
+Activation remains unavailable, and integrated posting is not implemented by D1.
+D3a must later install the unforgeable integrated write boundary. Restricting runtime
+privileges so runtime SQL cannot remove guards or shadow their sources remains a
+production prerequisite. D1 installation refuses existing ACTIVE owners rather than
+adopting or repairing them; rollback also refuses guard removal with ACTIVE owners.
+Install the complete trigger set under a controlled write pause: trigger DDL commits
+implicitly, and preflight alone cannot exclude a concurrent raw cutover. Dependency
+probes use current `FOR SHARE` locking reads, so raw SQL cannot use a stale
+repeatable-read snapshot to bypass ACTIVE guards. MySQL 8.4 trigger prelocking may
+wait despite NOWAIT syntax; D1 makes no trigger-level nonwaiting guarantee. Dependency
+contention may surface as native MySQL 1205 timeouts or 1213 deadlocks, without
+accounting-error normalization. A timeout rolls back the failing statement; a later
+COMMIT cannot preserve that mutation, though earlier transaction statements may
+remain. A deadlock rolls back the transaction. D1 protects integrity, not availability.
+Earlier migrations must be rolled back only after D1.
+
 - For each owner in active state, every newly created operational transaction has one
   and only one same-owner posted journal at commit. The journal has exactly two positive
   one-sided lines, equal debit and credit totals, the transaction date, and configured
@@ -146,6 +168,11 @@ journal guards use one outer database transaction and this order:
 8. Journal-line allocations.
 9. Draft-to-posted transition.
 10. Cash-flow completion and immutable operational link.
+
+Supported application actions must prelock dependencies in this normative order
+to avoid trigger dependency waits. D2/D3 application boundaries own deterministic
+lock sequencing and fast conflicts; raw SQL may block or receive native concurrency
+errors while database triggers enforce current committed facts.
 
 The owner row serializes this owner's application accounting writes. Validate owner and
 date before taking later locks; recheck facts under their locks. Do not nest

@@ -130,10 +130,10 @@ class OperationalReconciliationBindingTest extends TestCase
         $this->rejects(fn () => $query->update(['reconciliation_reference' => null, 'reconciled_at' => null]), 'requires a completed');
         $query->update(['state' => 'active', 'activated_at' => '2026-10-10 11:00:00']);
         $this->rejects(fn () => $query->update(['reconciliation_reference' => null, 'reconciled_at' => null]), 'requires a completed');
-        // No application transition is implemented here; this fixture resets to
-        // the pre-activation state to exercise stale-evidence clearing semantics.
-        $query->delete();
+        // ACTIVE cannot be deleted/reset. Use a separate pre-activation fixture.
+        $row = $this->fixture();
         DB::table('operational_accounting_integrations')->insert($row);
+        $query = DB::table('operational_accounting_integrations')->where('user_id', $row['user_id']);
         $query->update(['reconciliation_reference' => null, 'reconciled_at' => null]);
         $query->update(['state' => 'legacy']);
         $this->assertDatabaseHas('operational_accounting_integrations', ['user_id' => $row['user_id'],
