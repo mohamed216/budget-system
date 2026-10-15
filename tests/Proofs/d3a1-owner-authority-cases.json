@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "schema": "phase3_d3a1_authority",
+  "server_uuid": "9277202f-c26a-11f1-af5b-e6c2735e5133",
+  "expected_cases": 39,
+  "groups": {
+    "auth": [
+      "auth_login",
+      "auth_regeneration",
+      "auth_reuse",
+      "auth_rehash",
+      "auth_logout",
+      "auth_csrf",
+      "auth_bad_password",
+      "auth_connection_routing",
+      "auth_remember_rotation",
+      "auth_infrastructure",
+      "auth_denials"
+    ],
+    "lock": [
+      "lock_commit_release",
+      "lock_rollback_release",
+      "lock_credential_denial",
+      "lock_explicit_transaction"
+    ],
+    "replay": [
+      "clock_preflight",
+      "sql_hmac_vectors",
+      "first_provisional",
+      "same_transaction_replay",
+      "rollback_retry",
+      "committed_replay",
+      "concurrent_commit",
+      "concurrent_rollback",
+      "wrong_connection",
+      "different_owner",
+      "modified_fields",
+      "changed_facts",
+      "expired",
+      "future_issued",
+      "max_lifetime",
+      "unknown_key",
+      "revoked_key",
+      "rotated_key",
+      "verification_only",
+      "native_after_claim",
+      "native_after_effect",
+      "caller_preserved",
+      "finalizer_prerequisites",
+      "key_denials"
+    ]
+  }
+}

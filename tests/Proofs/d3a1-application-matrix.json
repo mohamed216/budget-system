@@ -1,0 +1,2234 @@
+{
+  "baseline_head": "438cb8c",
+  "schema": "phase3_d3a1_matrix",
+  "profile": "normal HTTP routes and configured database worker; unwired maintenance excluded",
+  "backends": {
+    "session": "database",
+    "cache": "database",
+    "queue": "database",
+    "failed": "database-uuids"
+  },
+  "excluded": {
+    "cache_locks": "No Cache::lock/atomic-lock consumer or job middleware in current app/routes",
+    "job_batches": "No Bus::batch/batch dispatch consumer in current app/routes",
+    "password_reset_tokens": "No reset/registration route"
+  },
+  "source_sha256": {
+    "app/Accounting/AccountingPeriodInput.php": "fe8986eef6f59bb305efe26b11e159628f524fc0befd19cc79ad383565087cf9",
+    "app/Accounting/AccountingPeriodLocks.php": "7de790af3739f278e0517fb01fd6292ced0fb884b84928304b8212a9439cec57",
+    "app/Accounting/AccountingPeriodOverlap.php": "8cd9755c7aba0ddcf92d574cc1e0dccaa6704c1093e8ca8d443a9f79420be72e",
+    "app/Accounting/Actions/ChartAccountInput.php": "61b74d5935a94328ba901a02d5ab3b418fb682c1bf3a511ffb12155af36d076c",
+    "app/Accounting/Actions/ChartHierarchy.php": "37c2ddf8e3428bb86543acc99d341b17a8a9546fd8f509b84279eb127b775388",
+    "app/Accounting/Actions/CloseAccountingPeriod.php": "181d2a4982ff1155fe3a3c8a2350d82ff641620fb072e38e6537b8a31c5f66c5",
+    "app/Accounting/Actions/CloseFiscalYear.php": "332b724e04cbe0057c50b598efc58df3c2f18907d1afc0a518ec1bf0a3aab6ee",
+    "app/Accounting/Actions/CompleteHistoricalCashFlowJournal.php": "6b8a6c54c8373fcac11b7cb6a973cd921d9135095e0317af6256da01ba8a6260",
+    "app/Accounting/Actions/CopyReversalCashFlowAllocations.php": "21d6b633b4c4a526c555103b466de4a15dcaf055449fe8c9b0738aa34cab468f",
+    "app/Accounting/Actions/CreateAccountingPeriod.php": "99a907799331e40cf340b570ee9d52d37118792414f5db3d9a244dce6b98cec6",
+    "app/Accounting/Actions/CreateChartAccount.php": "162badfd2bf8888f10855f1eee51ba92c10aef4a9856f9c0ab1fffaf7b3b2be1",
+    "app/Accounting/Actions/CreateOpeningBalanceDraft.php": "11cea3075f25a132424fb0830a5694cc33410894e07f044eeac061b1652dbce2",
+    "app/Accounting/Actions/DeleteAccountingPeriod.php": "8fe6c4ae2a207dc833302e3a90e8353b125a7dc8e51ee1f6b8c2ebb55f51847f",
+    "app/Accounting/Actions/DeleteChartAccount.php": "43f88f94fcb0dd1b54555b338328154104b9ac123685b9a6cca3b51daf5e9d6d",
+    "app/Accounting/Actions/DeleteJournalDraft.php": "f22725f4c7dfbb2ba77ecf5bbe8f69f0436109c88af6cf23ab298c16ebfeae7d",
+    "app/Accounting/Actions/DeleteOpeningBalanceDraft.php": "4556b5c7aeb22a0a2546eb7f475d6c704259ca549e652f008ba33dd8d0c33419",
+    "app/Accounting/Actions/PostJournalEntry.php": "78bb8fe3018ff340194784a3e3598254dffc8417116277dc248e8e8342d07f8d",
+    "app/Accounting/Actions/PostOpeningBalanceBatch.php": "593571351b2cbd431fffb84ed651920736aae2ca47a547ea3896068117fd085f",
+    "app/Accounting/Actions/ReopenAccountingPeriod.php": "2f40c63c03ecd6b62b3cb1156d3d3d1fd4e2f641432160a0c89ae7945843d9c8",
+    "app/Accounting/Actions/ReverseJournalEntry.php": "ff6756218b1fb55cd4b668d5f66b10f19348ef602f175bafdccef66ba7ac5e4d",
+    "app/Accounting/Actions/ReviewCashAccountRole.php": "65b346f5a82d14234bb97b0aa454319c9a28b8c9f052eb0a14466bdef61c6ed2",
+    "app/Accounting/Actions/SaveJournalDraft.php": "48a16126362474f8be49feb1368c0047ce8a868f3d61df3b0d6dcd6c97f8b0db",
+    "app/Accounting/Actions/SaveOpeningBalanceDraft.php": "d4209bb1c4e2ff9bb0036f9f78bae0760d741c5d2286b9b25fc255dd54387121",
+    "app/Accounting/Actions/UpdateAccountingPeriod.php": "0283b04aad4fe205bb574ab074d1b2735d13b97ca89f8034c33a546be71cd00a",
+    "app/Accounting/Actions/UpdateChartAccount.php": "bbbf4249cd31a6b08b7115aecaa71ca31897c66f25725cfee77bd50e0cea7c37",
+    "app/Accounting/Actions/UpdateOpeningBalanceDraft.php": "c85183ecd6da01adde79779e2f481194e78867a6aa711ae9a642210f3f7caa62",
+    "app/Accounting/CashAccountRole.php": "e094d2a0a062c95c793888c83ed988353f268af5bb2000862062aceb5a676773",
+    "app/Accounting/CashFlowActivityCategory.php": "09d0bb47a80b2e3f04fc7c814802a93450a68e9aa9543233766ce316e47fdd0d",
+    "app/Accounting/CashFlowAllocationValidator.php": "0dfdca05b47dc3ce1e82fdea26191cf9c3a27c1d638fb6c575703fb4c58ef01b",
+    "app/Accounting/CashFlowStatement.php": "fcdfad688e5bbccee3bc4f91860e8563865335620f485d6c75d7e1f79da4153d",
+    "app/Accounting/ChartAccountFieldRules.php": "efbad4eee8b4eee11175a933e69f149f4b5cecca8293a24fa66c3c829271667c",
+    "app/Accounting/DecimalAmount.php": "dbb74652a7c2c090431c7c3ffc4228ec2090e11c387630dadf4309e0868142e3",
+    "app/Accounting/DraftCashFlowAllocationInput.php": "67a4d294f34e68229903dee4c3299ef3608a22f8e0a54a8c8679cae700e785d5",
+    "app/Accounting/Exceptions/AccountingConflict.php": "4a2ee2154418e6a74edeac1ee901ade981429d30dec00eace601be8f622d77a5",
+    "app/Accounting/Exceptions/AccountingConflictReason.php": "7d30138dd705a2adcca7a43094d8fca8f4d657d54a8dbd9a99a49ed012572400",
+    "app/Accounting/Exceptions/OpeningBalanceAccountsUnavailable.php": "5cbd38736f1b90db6d2cb4bdfe33154d1bd4a26a1dad30d6ee92b9376e43a870",
+    "app/Accounting/FiscalYearCloseFieldRules.php": "25525ccd8fcef30b5334c346908ebef5567aaacf496b6dc67bd8c71058bdd5f7",
+    "app/Accounting/FiscalYearCloseInput.php": "2dd4aa4ece430a572f6ceec62e7f5e40dffe01747f53ae97e72df9d89f9aeb60",
+    "app/Accounting/FiscalYearCloseOverlap.php": "1787a7f8837ae9ffb883dfb10a7246d1ef6dbf49947d1430126716dbcf090920",
+    "app/Accounting/FiscalYearProfitLoss.php": "f7127c5a2710dd23760067a9ee70029a2e1ea33ceb3486072872e0baca2617da",
+    "app/Accounting/HistoricalCashFlowAllocationInput.php": "dc9d517828d6678d4e7859e3a2a75b12a5a7bfbc1c649f535214a7248a7ec627",
+    "app/Accounting/HistoricalCashFlowCompletionOutcome.php": "4bd9273ec7a7fc4eb16e54fcc0bafca6d32e79b23597efc8c43eeb8808b06711",
+    "app/Accounting/OpeningBalanceInput.php": "1b61652d8c030cf768f85dca1f70ddc0b620f618506e7db318051b3c30ee8b59",
+    "app/Accounting/OpeningBalanceTotals.php": "2bd08e37cea2690c84fcff9b0bf6e0ff35858169918c0967aa51adb284423220",
+    "app/Accounting/PeriodGuard.php": "94befe22c89a77f89c70ed8162470a565dc0eff76772e77df1ec665744757b45",
+    "app/Accounting/Queries/CashFlowOperatorReadiness.php": "82003da5d0f6367d3246973cefe05e682a67bed5c5ac6d05fc2084eef83f07ad",
+    "app/Accounting/Queries/CashFlowReadiness.php": "349f85eef8e7739cdacae440364e6b8772fd58fd7b444e04654008ab8907dc91",
+    "app/Accounting/Queries/DraftJournalAllocations.php": "69d7400e2f1f856e139d3d83c2d7051ddfae6b8ad72ca3621a8a0e9ba9f93fe8",
+    "app/Accounting/Queries/FinancialStatementSnapshot.php": "608590e267361c230cb73775b1bf4f38f387a092e02e5ba68a622aae3dbf2b28",
+    "app/Accounting/Queries/GeneralLedgerQuery.php": "c6b3f96ef82a9e7d1e1b133eefa9430574a10f5b76bebf66f160e98b3472f652",
+    "app/Accounting/Queries/IncomeStatementQuery.php": "3bef69966513c6780939ce5d8d64c48b8dbbfe29c1f1f894a586b34c3bb623c7",
+    "app/Accounting/Queries/OwnedChartAccounts.php": "f3ff9fbfb2b1eddc91e3ac57755f471737730191047fcd266ce848ead049ba04",
+    "app/Accounting/Queries/PostedLedgerIntegrity.php": "d97a2849c8321404e24a39bd58fabd5d8ec3d7f6b591ba215dd5726dc1e14db9",
+    "app/Accounting/Queries/ReportingCurrency.php": "73f0966ac7f3024de763a73124c62b0245f695fb640224718c267632fbcf41f0",
+    "app/Accounting/Queries/StatementOfCashFlowsQuery.php": "907ef01e2514c86417be604773f8bd99445bb79b9e9ab0a70d37e31e976bda0d",
+    "app/Accounting/Queries/StatementOfFinancialPositionQuery.php": "09f87f79e910986c58b80e8bec0381345b27df2493a1112699ce6ecc4541b86c",
+    "app/Accounting/Queries/TrialBalanceQuery.php": "8ef04215be09d9c9801bcd07c57869f34774f5d9f7e8dffb5d1b2ce86553d617",
+    "app/Accounting/SignedDecimalAmount.php": "a561b0ce91acc5d9ca1ca87d8eca1f17dc44372cbe1043dccfefa3590fd7dcec",
+    "app/Actions/DeleteAccount.php": "9dee83ff0929a53686671fe691178bae8a16140c84f2586fd946bdcb6d835b42",
+    "app/Actions/DeleteCategory.php": "d2bcb8cc3898fc2318788714c0c19c8fc040fcde6f461cc0ec829c3102f1297c",
+    "app/Actions/Exceptions/AccountHasTransactions.php": "7554d5d378edd36320d99b7b58abd29a40d06782a4d13a2a239a79fd8cba53d6",
+    "app/Actions/Exceptions/CategoryHasReferences.php": "97020958e7cec2c6d33070e7642c67d69c5c637862120bea1155c83d1a12e538",
+    "app/Actions/PostTransaction.php": "d2c01f00b0246ad0e95d47f86a3cfc96498be56f1096e454266a43177c2197b7",
+    "app/Actions/SaveBudget.php": "c943b604721f0844221e9f1e1236570d87f032343755c074fd3cffe7388e1223",
+    "app/Console/Commands/CashFlowOperatorCommand.php": "0b5fa8dae46d90271c8224b2acba4ab9a10bee096df3014e0fae1b00e486b8ba",
+    "app/Console/Commands/CashFlowReadinessCommand.php": "2c155d388be8ed3cda872d7b74e93f84ed02ee2c06d431ca019939c8f024fd43",
+    "app/Console/Commands/CompleteCashFlowJournalCommand.php": "4259dd5cceaca060a68ce1c202eb5abcc6898d4d55af58699659985b9d36f082",
+    "app/Console/Commands/ReviewCashRoleCommand.php": "5226799840f98e689c5d923e197ddd28ffa9e0a51f57d6dd12b91d51b454ebb8",
+    "app/Http/Controllers/AccountController.php": "265a9f47c15ae9ec6e06c6ba7b4d4649590812f6867a654c8255e7430048967d",
+    "app/Http/Controllers/Accounting/AccountingPeriodController.php": "020c97fb2c3af5e9f724ed1a2344f2e508c3b9b563c7183d23ccca70c1fff50d",
+    "app/Http/Controllers/Accounting/CashFlowStatementController.php": "bb83b4aef02a66b09cdad67c3240763b0359b057aff03e9c2dae9f396b963cf4",
+    "app/Http/Controllers/Accounting/ChartAccountController.php": "e9f014ba01e63e95d98424fa4282d05e16282d9e15e8cfb394676f1a2a30dd6e",
+    "app/Http/Controllers/Accounting/FiscalYearCloseController.php": "6509c8868c49fc1f641d73fdeb0d8de9f61c143938dfa009257f227e66073781",
+    "app/Http/Controllers/Accounting/GeneralLedgerController.php": "24ed8afef2c8eb6ddddbfa838bf9352f7ae67c2e2bdb4290a76e89eb45d34911",
+    "app/Http/Controllers/Accounting/IncomeStatementController.php": "1a6bb785cb97294071ad73da58c29c0bd3033a652a3cafc76c5540a8b0591575",
+    "app/Http/Controllers/Accounting/JournalEntryController.php": "42d5c617b8c7548d1d96420599d2cdc2222b2f56cd3e81cd5c86e693e14fde8b",
+    "app/Http/Controllers/Accounting/OpeningBalanceController.php": "a7398211bfe356a91ce2eaa50f685f43e58f03f1b137c5a5517a7b7c13762832",
+    "app/Http/Controllers/Accounting/Pages/AccountingPeriodPageController.php": "7dcfd653c04836e26f03796135c9f11ffcccf928a101dc246d802a36ea865787",
+    "app/Http/Controllers/Accounting/Pages/CashFlowStatementPageController.php": "0b53f322c8a52190f1f4c1cda0e4306a19c081e126775c8350107e8adb4c43dc",
+    "app/Http/Controllers/Accounting/Pages/ChartAccountPageController.php": "a1dacbd361556eeafda3d5b664824b383031cde753bdf72c435393a02b0e5427",
+    "app/Http/Controllers/Accounting/Pages/FinancialStatementPageController.php": "cda66f5cba8c8adb0ad32a3ba54dbd893a556a53a0cc6c1ae2775b6a78c4707d",
+    "app/Http/Controllers/Accounting/Pages/FiscalYearClosePageController.php": "113f71c341e10beb3f2cbf2fed297f53c46d417d7c9adddd05917536d197ff72",
+    "app/Http/Controllers/Accounting/Pages/JournalPageController.php": "aceed79859fc5f3271e4edac16f4c371c9a037c63e23d695bdb2d2975a0a773b",
+    "app/Http/Controllers/Accounting/Pages/LedgerReportPageController.php": "24c8ef95019188a52a578471bb64c7e3a54387714b69b58164c6af18da3f9449",
+    "app/Http/Controllers/Accounting/Pages/OpeningBalancePageController.php": "c303c3c1c26669a2ac4e2ada22a0808affdcbc6203c59f503b2728e2b59c9b96",
+    "app/Http/Controllers/Accounting/StatementOfFinancialPositionController.php": "18614f4af08b7f8949ac0b0cb7bb9483bff27388c0c74c45244fe872d36e2895",
+    "app/Http/Controllers/Accounting/TrialBalanceController.php": "a2b658cf5503139f693dafc52f8f058bf0ab985acd40ea28ede0d4d183b52bca",
+    "app/Http/Controllers/AuthenticatedSessionController.php": "08327dbfba30a86deba068f67640db12137c11e339d2538621427fee4e6c33c3",
+    "app/Http/Controllers/BudgetController.php": "58224ae08b940c22812f8cfa610b2045a5f4debe8a3ae1a4e5de2e05f0ef62ee",
+    "app/Http/Controllers/CategoryController.php": "b7dd9ea3494a31ca2893cc3b40094ede38a376c02fcf89d0916f80eb22255465",
+    "app/Http/Controllers/Controller.php": "25d1c1ef8e6cc8a376553faacfba2b07d9dfaee9bdbb84f14f77517580e9deb1",
+    "app/Http/Controllers/DashboardController.php": "69a97b3f5682d5209fbd1639b7428717e52acea270adf18112a3768898afdb4f",
+    "app/Http/Controllers/TransactionController.php": "69cc841010c0fe2162703731d602cfc960df98c1784add3351e918572bcd7b64",
+    "app/Http/Presenters/AccountingConflictPresentation.php": "a72a08dc38e9bd77435b2c0d7c1e3ba7868880b67c2d667ca1f47e63450c4232",
+    "app/Http/Presenters/AccountingPageMutation.php": "1b9ec50f4aa26455dd80834bca85cc48ea383bb4b9ebc73473b51783f8f701a7",
+    "app/Http/Presenters/OpeningBalanceValidationPresentation.php": "fc0dd8000229cb00049e3cf33517a59a54c71d9f27028903daa71bff93c17c1f",
+    "app/Http/Requests/Accounting/AccountingPeriodRequest.php": "946580acc2638652dc60622d52d8c540818b90982d537d393872b5b643b8139a",
+    "app/Http/Requests/Accounting/CashFlowStatementPageRequest.php": "c96018599fef034dec47c517414aa7fc2f7cd23c7e0c91e9f47cd53e8b87677c",
+    "app/Http/Requests/Accounting/CashFlowStatementRequest.php": "d512ff8233eaf1602658d854b6b73663fa050823176ab4959f6c5ab830299a6b",
+    "app/Http/Requests/Accounting/ChartAccountRequest.php": "cf2a54a3baddf45d93a8e3e02a7978b79e42beeff88f7c98fac43670275714e7",
+    "app/Http/Requests/Accounting/FiscalYearClosePageRequest.php": "bd31e36aada17d90e876bc415c6126c3482f06f8a789b9f27699918f35cf6b5e",
+    "app/Http/Requests/Accounting/FiscalYearCloseRequest.php": "5cd536d72233ac37afa90ec0a0fc3f4ce169cc2df8ab020543f8409bbe1ca9b3",
+    "app/Http/Requests/Accounting/GeneralLedgerPageRequest.php": "4d4bc6c3d8ba652f3693e17bdf90383df21953fda724b1a9773ca23e9e28bcfc",
+    "app/Http/Requests/Accounting/GeneralLedgerRequest.php": "095254209ed12a7bbcc0a140bf988aa04a3c8a77e2f4ec3a9d697f3ff1f2ff0c",
+    "app/Http/Requests/Accounting/IncomeStatementPageRequest.php": "7b6645377448c20ce3e69329c4c3d76c5e898a894947c4815924f630875741db",
+    "app/Http/Requests/Accounting/IncomeStatementRequest.php": "aa4d3df08324eda4740e766f806d316f67515d73ded8fea95841dbc5ac20f0cd",
+    "app/Http/Requests/Accounting/JournalDraftRequest.php": "5e7ee6ce7d2da6429a49eaff7ac8249b5f50ec8515d36f45ed9c3a263dc51b58",
+    "app/Http/Requests/Accounting/JournalPageRequest.php": "78cc9be42e6fa1d4071aac646b00fed7624de3a699f510d40cab2e1876c2f4f6",
+    "app/Http/Requests/Accounting/OpeningBalanceDraftRequest.php": "4c332e738f3dad5b06be7be338a6243eb243dcb0cb12b51dabffe93f55029cd3",
+    "app/Http/Requests/Accounting/OpeningBalancePageRequest.php": "1f80f5631f54daaa8a3f12e339ad9aab3f543428862c026dbee59ddd40d0dd32",
+    "app/Http/Requests/Accounting/StatementOfFinancialPositionPageRequest.php": "160bb874b17d4ae2e689fec47335eb4c9622d2a4d24fc5dbf46e2e3ea6d71eb5",
+    "app/Http/Requests/Accounting/StatementOfFinancialPositionRequest.php": "925ba5264b2b008d1b509c8af9c87068cb8c0f1eebdda66463390305cf4f511b",
+    "app/Http/Requests/Accounting/TrialBalanceRequest.php": "a3826f7649cf6f70ef052c158bb150328b2a8372e9c01cb8a0ea8186d2d10b56",
+    "app/Http/Requests/StoreAccountRequest.php": "004fc0966171c2c6f68e8789f69b4f2e5c751401e733a2b1ad3e7dfa51e3c92c",
+    "app/Http/Requests/StoreBudgetRequest.php": "01bb76a4587a40caba2de0c44d2a2d77d96d79141a11b0b98445079c20d68751",
+    "app/Http/Requests/StoreCategoryRequest.php": "8567c0d43be00890d03f45566ff35aff9b04f3b2ba746e048a55121ea6463afa",
+    "app/Http/Requests/StoreTransactionRequest.php": "3c2fbfd610729cdab35e5253cc202dc946bc900b3d457706aa0e615933469f26",
+    "app/Http/Requests/TransactionIndexRequest.php": "267cc3798a3a4a08f37c9965ff9d5a144095ec94b79a63d2549121f756e848ac",
+    "app/Models/Account.php": "6809f13087c759eb37762c60568a8a782ee88bc669047e47dadd7a24b285b7c2",
+    "app/Models/AccountingPeriod.php": "faac85754d357c2640cefa5274039c615b98cd09d66e2084523ef07c8ad5657c",
+    "app/Models/Budget.php": "c32ee508bb1b627ae51509a7ac39b6a7bf37500dfbd5861cbd28a6999ce06e93",
+    "app/Models/Category.php": "88a8650fe345d09db5b37516d0092ce0f49eb035e2fe8d0f5856e18b7194bad6",
+    "app/Models/ChartAccount.php": "7394da82843df2c441e7e8d0ec55fb16e6ca14e837311ccbc2a5ff38c7060922",
+    "app/Models/Concerns/OwnedByUser.php": "3c0f66989537f964a234a5e3f3157c8a6d4a818a9d821a50fa705a4084e6ffc1",
+    "app/Models/FiscalYearClose.php": "f03134f5f00cf161b1a507c8fe6716956835524d7dba964ec6d6fa02faaee28c",
+    "app/Models/JournalEntry.php": "f64771d9e336757bed14a772b478ec8cf1abed92d4898b6ea935d53680a579a3",
+    "app/Models/JournalLine.php": "838d02063b2f1fab0d67a6bf82bed47b8998e11d0a81e06a78ce234b87652399",
+    "app/Models/OpeningBalanceBatch.php": "266074aff18e948408662ebd47fc7eb8a55c5ba6a6f23c8e134c6bafd393e15b",
+    "app/Models/OpeningBalanceLine.php": "0278f390a2e569cc7f4aefa34a60e706319c3a0bcf5ef84844e4567014172c8b",
+    "app/Models/Transaction.php": "61a78cc2a07f5bc185ec7397001488cfb974aec0fc181b4998aab6cc0dcb5678",
+    "app/Models/User.php": "522d74ad2d9402015f571a5a7ea68c3fb48d7ac817853f8a642c059233c880be",
+    "app/OperationalAccounting/Actions/BeginOperationalReconciliation.php": "ca570bda67e55d1b6b235446572facbcf2cb15755328e31edbd6b6e53712422d",
+    "app/OperationalAccounting/Actions/CaptureOperationalReconciliationBoundary.php": "fbda0664a1c4ecc4aeaf73df3920a3f873bba338416c6ec4274a53dd2942f82c",
+    "app/OperationalAccounting/Actions/CompleteOperationalReconciliation.php": "7b76ac79479c7a9089069e3940bde3cc94a9888975665da66cdea6e742c98507",
+    "app/OperationalAccounting/Actions/MapOperationalAccount.php": "33f59a40d23aad21248a7ec4522b0680c08501b9d8fe5c4abd5bb037f7f03cd4",
+    "app/OperationalAccounting/Actions/MapOperationalCategory.php": "a587739a3137ace88ad1039718dc6f09a14129bdc37e4211771866fb1ee98345",
+    "app/OperationalAccounting/Actions/MarkOperationalAccountingReady.php": "2401af1928a85cf48ef49c2a6455d3fc5e63ccd904f32a6c7a62d67371c11a42",
+    "app/OperationalAccounting/OperationalAccountingReadiness.php": "6ca9e8f0f1a65879ff1ff5ccc2745f5a33db13fc61e1fa391e86bbe0cc7b9dd8",
+    "app/OperationalAccounting/OperationalAssetReservation.php": "7b88a44a434532b3c0e75118215b2e830762b8277342fa7a9637a29459856584",
+    "app/OperationalAccounting/OperationalReconciliationChartDependencies.php": "0f0620cad280a6b36cbf0f06b6b41f86133c33a9fb9c462f5de59e7c8f1ac38e",
+    "app/OperationalAccounting/OperationalReconciliationHistoryDependencies.php": "8e50b7ab12e0bcb059f124f6a175f0fc96eaf2692054e500506d285c4f70341b",
+    "app/OperationalAccounting/OperationalReconciliationInvalidation.php": "daf9e2cdf2d886c9c29a6ba02a6865c03d8f6160df264f7319dcd534c27ebb18",
+    "app/OperationalAccounting/OperationalReconciliationReport.php": "8387add094fad36125880e7f4b45d146bbaee0fe69a5ef6b2246cbbf56286a3b",
+    "app/OperationalAccounting/OperationalReconciliationSnapshot.php": "76a962e1e52bce28f4793a08c85d09e8144b871886abdb12112f6463651ed8d1",
+    "app/OperationalAccounting/OperationalReconciliationValidator.php": "4062af514468beb039171dcf9453a65b2b3f5376c81f2d4784a19396bd0333b7",
+    "app/Policies/AccountingPeriodPolicy.php": "9898e8dbcb0a58eadde630de8745be9e2931f4266fb6d5609c9225cd423441a7",
+    "app/Policies/ChartAccountPolicy.php": "25fa6cc5d98a7278b924653ddd8a78737bd5a536f032d3d55d86b36300d3fae1",
+    "app/Policies/FinancialRecordPolicy.php": "d5694b5cf1d1664259dd43dbc7914e0713fdd6281fed77af6b861c9ae43cc7ce",
+    "app/Policies/JournalEntryPolicy.php": "f27831fede4589a858fee3afcbcf6137e6bf8f2a6465bd256ee769eaae723c8f",
+    "app/Providers/AppServiceProvider.php": "940cb439405d0064bcd089f06ecfdd16ae0031c9b87070ae539e1864cc4345a7",
+    "app/Queries/DashboardSummary.php": "951c3b42eb499236b338c7d21b86bd6e63b36786102bc86d4c0b92db5ae04615",
+    "app/Queries/LegacyPageRelations.php": "6cc460b622fe198b35b728fd6d00361e017a41b7e77c6a8031e5db7cc05457ae",
+    "app/Queries/LegacyRelationIntegrity.php": "03fe126f0ac5d8480872c6b2e63c06043cdd0650be07ac7eaad9ee9f0891a85a",
+    "app/Rules/DecimalAmountRule.php": "35aaa21746b2f5ccee40784f95c421c4828154347edbaecc22adf8026d428bac",
+    "app/Support/MoneyDisplay.php": "1e1babaca27dd52ac8edba9fd36bc98cebcb8b3216f77c38cf04b16d514b5c56",
+    "composer.json": "2f3f7d4594e33a7f1334531aadcea0e4f49cf3941d0b9e68f64e52107c234cf8",
+    "config/accounting.php": "442c6321308eceb203e95e0454e5156e299ef3f4c16e5536e84ff39b26dc2150",
+    "config/app.php": "78dcd36b226fd7b24057cb95f567cb6e96561c2406653892d8aef6dcea8461e4",
+    "config/auth.php": "50f8a6fabf848d20ea42a21e01066dd8a75bd822c8251a45f8939616432424dc",
+    "config/cache.php": "b8bcf382283330b94c0a602ff06452de819041ea709e28eea5065d51d1d7d085",
+    "config/database.php": "1a1edacb71744772d5ef54fdc2597895a86a9ac272779af3b6b22788a8afe434",
+    "config/filesystems.php": "ba7060d7a23e490c3ce830656f6d24ad3ccf5b868e3293f2a12e411959dc5635",
+    "config/logging.php": "d90f24826a3330437f2f2fc12bb28680abe1281d35d62b082c234f4b69873835",
+    "config/mail.php": "825c4b149f2fe412a2e37199794e7c05df7ed86fb51811777faf80238f748aae",
+    "config/queue.php": "6101774da7c8b79af46d0028f2b8b31a484c3f7eda10b76e5b27b6093ad364a4",
+    "config/services.php": "8258c4487eb1d73a97e569eb0e411e3f25368044812df4cba807860432be1d92",
+    "config/session.php": "f2e75e189021597e29940c0859c00c3088ec591e403768fff5143c5687a80f59",
+    "database/migrations/0001_01_01_000000_create_users_table.php": "10d79883bc08ce46510f9ad8b1830b4d06d586dc56ae2c8bac3b3e491f69a90f",
+    "database/migrations/0001_01_01_000001_create_cache_table.php": "2ca8398390ecef8eaf72aeac7fefce67f7de631b6f2ec7b7081c8db8953215dc",
+    "database/migrations/0001_01_01_000002_create_jobs_table.php": "7c9c712adf4091c87bf2612f4d0dccdfa1df4501553e4ac068b83d7bd5462fa5",
+    "database/migrations/2026_03_08_000001_create_budget_tables.php": "2aa445a83b78948e41de3c471b266251c8ca0d5503f0e4a8d245b7acfef57149",
+    "database/migrations/2026_10_05_000001_add_financial_ownership.php": "f3791d9f9751f930814bcf87493cc8b2beba43235037ba4b121c482805d7d9c2",
+    "database/migrations/2026_10_05_000002_restrict_financial_deletions.php": "9e86073996566bd90b24ee19b4b1d3da3a9c5b27b7f65859166a05c067f73555",
+    "database/migrations/2026_10_05_000003_make_budget_period_unique.php": "b44538315011a77f1e381281a07aabb8be5dd452dfa57530ed55bdee16b2fc87",
+    "database/migrations/2026_10_06_000001_create_chart_of_accounts_table.php": "ed5f38f84cd30c61895913ef23259df6e8dda5f5b19a603b9704552c1b54d286",
+    "database/migrations/2026_10_06_000002_create_journal_entries_table.php": "cc6e717a1d718a611d1578dac2c5c5892f73cf7d360b55e89b915f53c179a228",
+    "database/migrations/2026_10_06_000003_create_journal_lines_table.php": "c4bdd982296f539f4298f6e3fd9bb00b1ca6f87f385b0683ce14bcb76b429eeb",
+    "database/migrations/2026_10_06_000004_protect_posted_journals.php": "e697a8cc46abb4fbb6d5cf314f6a4232499f0d6a27e95b2a09a73094e10ae59d",
+    "database/migrations/2026_10_07_000001_add_journal_reversal_link.php": "5e9f2c400a137062eb17be20f449298f20b8f93f49436cae217dd7fb7ff43b3b",
+    "database/migrations/2026_10_07_000002_create_accounting_periods_table.php": "10d55ff1072975a3d7dec8d343e615bbd82a32a0642bf5f2def98a483f64aa72",
+    "database/migrations/2026_10_08_000001_create_opening_balance_batches_table.php": "40aec746c79ac2b175f92c4ec1bfa4d53a76a610ceff080d2bffaec3bb67010d",
+    "database/migrations/2026_10_08_000002_create_opening_balance_lines_table.php": "cc2f811c227362492a8684044210e15cdcc25542b9c84b3c492d219070be0a2a",
+    "database/migrations/2026_10_08_000003_protect_posted_opening_balances.php": "796125b8dcf5432466801420ee9aa779decc3c228d5403f14228476301cc1cbe",
+    "database/migrations/2026_10_08_000004_create_fiscal_year_closes_table.php": "733a798096fd7089eea3cb903abdd761751b4dbc158734b464f32b641f4f1db6",
+    "database/migrations/2026_10_09_000001_add_cash_role_to_chart_accounts.php": "4614f07546b30f7f4b36d41318225e47abb15106806ab6182626e962c52229c1",
+    "database/migrations/2026_10_09_000002_add_journal_line_allocation_key.php": "918f36bb1847fbb6351021331e70a12b019a13220588641a552cc1c366925c36",
+    "database/migrations/2026_10_09_000003_create_journal_line_allocations_table.php": "2e59ac08bafadcbb7e4aab8757b716ebd3eb06144808f60a32c2f30e62a863fb",
+    "database/migrations/2026_10_09_000004_create_cash_flow_journal_completions_table.php": "eaf19dd96a602e9815f6ea8c0678254a380e99a9ce6ffe7ed77faa7a051e1f46",
+    "database/migrations/2026_10_09_000005_protect_cash_flow_review_rows.php": "9c641563a17f0d0aa3f7a7f42d6d6ee2644661e2999f6bbccb2334bafb5abafe",
+    "database/migrations/2026_10_10_000001_add_operational_owner_reference_keys.php": "fca835788bf056fb65f1e76876c17c54ac210d94b560e7706e378388ab9bc31d",
+    "database/migrations/2026_10_10_000002_create_operational_account_mappings.php": "ce96c9a6566f235e5867e4fbce6be2a4d2f5b8454210f38ecb0cc739fa5ea4ed",
+    "database/migrations/2026_10_10_000003_create_operational_category_mappings.php": "f2c632f6fe92ee473aefc47cb8a12792a6a97f1a4efa548a9c7299345e7a524c",
+    "database/migrations/2026_10_10_000004_create_operational_transaction_journals.php": "dcf0c06d8e6acd1f6a7ad0cf8824ccd2cc973914b8a28ed112d81ed6b6f17a88",
+    "database/migrations/2026_10_10_000005_create_operational_accounting_integrations.php": "fdb800c0211a084fd51a7b7c71c9d351cc393ec2ba5a6029aa4a8b6070ff3f39",
+    "database/migrations/2026_10_10_000006_protect_operational_accounting_links.php": "ceeac6ef6597fb4f0f994ba07f2dd4239382e529a4763eb93c5b85ec847d2d82",
+    "database/migrations/2026_10_10_000007_create_operational_accounting_account_scope.php": "16f4a20f46b762764000b5f2a95c3c15fdbf80f2564ea4ee1f3502f406e1c96a",
+    "database/migrations/2026_10_10_000008_create_operational_accounting_category_scope.php": "b620cc9363255e98c42208569bea3276a0186dfbbb0a0bcb70fbbf92d6797722",
+    "database/migrations/2026_10_10_000009_create_operational_reconciliation_reviews.php": "6e7027e74adbf448a3c5e707d1c66deda84801668a5e16647c879842ad7aa7b2",
+    "database/migrations/2026_10_10_000010_create_operational_reconciliation_charts.php": "1672873ca8fcd2c1f99b91001bc07960e06e01ae7e2f67e7ce413779ab729ef8",
+    "database/migrations/2026_10_10_000011_create_operational_reconciliation_accounts.php": "17496fbd48c859ab6c6f7967e747bca5019b6d972ddc53b71e4a08a4bd07c8ca",
+    "database/migrations/2026_10_10_000012_create_operational_reconciliation_categories.php": "c3f869371d2b33be80ab48fe43c25b86e7c520bad914bc4d27a79f1ea363a344",
+    "database/migrations/2026_10_10_000013_create_operational_reconciliation_journals.php": "579b1fb8e4621217c6e3d20868f90117f8213a861bf707548292348c912f2cc5",
+    "database/migrations/2026_10_10_000014_create_operational_reconciliation_attributions.php": "a7f88393d075fb86ed2b09bbd9f17cac3b605d60a9ffa391afdeb09eaeb10b11",
+    "database/migrations/2026_10_10_000015_protect_operational_reconciliation_evidence.php": "f97be0963e29a4d0779904c24252790e057d9a95deb4d9acccd98f2a9ed9f31b",
+    "database/migrations/2026_10_10_000016_bind_operational_reconciliation_reviews.php": "bf972ee817a76cbc982b0ec6bc1f1b6182af928b0e431622bd1e76c5b20d83c8",
+    "database/migrations/2026_10_14_000001_protect_active_operational_accounting.php": "f76ca89d9b40090e66f912efce6ebbf84d284ac1f8e9a25ba31d874602260955",
+    "routes/console.php": "9adccc33e7dd400683e434774077c7fdb2f299c5712cedf16a43fdf56f2850fa",
+    "routes/web.php": "12d8e666733b6f93e78e42ae9a2a2ca454e8724d4085119fa1b9a23e20c7d762",
+    "vendor/laravel/framework/src/Illuminate/Auth/EloquentUserProvider.php": "6c7268a984f2a4de0290cd69e4ca1d43e76a874c88b96c591dcd3134d9e2fc2c",
+    "vendor/laravel/framework/src/Illuminate/Auth/SessionGuard.php": "44d43ed436a8773eb6da22188eff08e599063ded8e1c7dfc81d4d7a5fdca05cc",
+    "vendor/laravel/framework/src/Illuminate/Cache/DatabaseStore.php": "1df45d12a4d675d15b10353eff2f0c3457c6eab79e4ffe50fb85b6dffe2e6b34",
+    "vendor/laravel/framework/src/Illuminate/Cache/RateLimiter.php": "9d5010518c9634a698bf6261c1808c6c54d6992075a077fe9bf480417fa48a77",
+    "vendor/laravel/framework/src/Illuminate/Queue/DatabaseQueue.php": "6c85a7d2e7d5ad8d710937750e6f580ed598d8b2df1298904eb4478b605bcb45",
+    "vendor/laravel/framework/src/Illuminate/Queue/Failed/DatabaseUuidFailedJobProvider.php": "e4412a4b81fd5277e6a8198a6eabde2b749acb5f7dabeb5ca0f8977a8d3b2531",
+    "vendor/laravel/framework/src/Illuminate/Session/DatabaseSessionHandler.php": "79075504269958d4e73247ba86c4c80e0a76a0a762d5f120849089db58c2c58e"
+  },
+  "tables": {
+    "users": {
+      "primary_key": [
+        "id"
+      ],
+      "columns": {
+        "id": "BIGINT UNSIGNED NOT NULL",
+        "email": "VARCHAR(255) NOT NULL",
+        "password": "VARCHAR(255) NOT NULL",
+        "remember_token": "VARCHAR(255) NOT NULL"
+      },
+      "values": {
+        "id": 1,
+        "email": "matrix1@example.test",
+        "password": "fixture",
+        "remember_token": "fixture"
+      },
+      "references": [],
+      "needed": [
+        "UPDATE"
+      ],
+      "lock_read": true,
+      "mutable": "password",
+      "evidence": "AccountingPeriodLocks::owner; Auth EloquentUserProvider rehashPasswordIfRequired/updateRememberToken; no registration/deletion route",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "REMOVE_RUNTIME_PRIVILEGE",
+        "UPDATE": "GUARDED_WRITE",
+        "DELETE": "REMOVE_RUNTIME_PRIVILEGE"
+      },
+      "seed": [
+        {
+          "id": 1,
+          "email": "matrix1@example.test",
+          "password": "fixture",
+          "remember_token": "fixture"
+        },
+        {
+          "id": 2,
+          "email": "matrix2@example.test",
+          "password": "fixture",
+          "remember_token": "fixture"
+        }
+      ],
+      "select_needed": true
+    },
+    "accounts": {
+      "primary_key": [
+        "id"
+      ],
+      "columns": {
+        "id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NULL",
+        "name": "VARCHAR(255) NOT NULL",
+        "balance": "BIGINT UNSIGNED NOT NULL"
+      },
+      "values": {
+        "id": 1,
+        "user_id": 1,
+        "name": "fixture",
+        "balance": 1
+      },
+      "references": [
+        {
+          "columns": [
+            "user_id"
+          ],
+          "table": "users",
+          "parent_columns": [
+            "id"
+          ]
+        }
+      ],
+      "needed": [
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "lock_read": true,
+      "mutable": "balance",
+      "evidence": "AccountController::store; PostTransaction DB::update(balance); DeleteAccount",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "GUARDED_WRITE",
+        "UPDATE": "GUARDED_WRITE",
+        "DELETE": "GUARDED_WRITE"
+      },
+      "seed": [
+        {
+          "id": 1,
+          "user_id": 1,
+          "name": "fixture",
+          "balance": 1
+        },
+        {
+          "id": 2,
+          "user_id": 2,
+          "name": "fixture",
+          "balance": 2
+        }
+      ],
+      "select_needed": true
+    },
+    "categories": {
+      "primary_key": [
+        "id"
+      ],
+      "columns": {
+        "id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NULL",
+        "name": "VARCHAR(255) NOT NULL"
+      },
+      "values": {
+        "id": 1,
+        "user_id": 1,
+        "name": "fixture"
+      },
+      "references": [
+        {
+          "columns": [
+            "user_id"
+          ],
+          "table": "users",
+          "parent_columns": [
+            "id"
+          ]
+        }
+      ],
+      "needed": [
+        "INSERT",
+        "DELETE"
+      ],
+      "lock_read": true,
+      "mutable": "name",
+      "evidence": "CategoryController::store; DeleteCategory; DELETE already supports locking; no normal UPDATE",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "GUARDED_WRITE",
+        "UPDATE": "REMOVE_RUNTIME_PRIVILEGE",
+        "DELETE": "GUARDED_WRITE"
+      },
+      "seed": [
+        {
+          "id": 1,
+          "user_id": 1,
+          "name": "fixture"
+        },
+        {
+          "id": 2,
+          "user_id": 2,
+          "name": "fixture"
+        }
+      ],
+      "select_needed": true
+    },
+    "budgets": {
+      "primary_key": [
+        "id"
+      ],
+      "columns": {
+        "id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NULL",
+        "category_id": "BIGINT UNSIGNED NOT NULL",
+        "amount": "BIGINT UNSIGNED NOT NULL"
+      },
+      "values": {
+        "id": 1,
+        "user_id": 1,
+        "category_id": 1,
+        "amount": 1
+      },
+      "references": [
+        {
+          "columns": [
+            "user_id"
+          ],
+          "table": "users",
+          "parent_columns": [
+            "id"
+          ]
+        },
+        {
+          "columns": [
+            "category_id"
+          ],
+          "table": "categories",
+          "parent_columns": [
+            "id"
+          ]
+        }
+      ],
+      "needed": [
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "lock_read": false,
+      "mutable": "amount",
+      "evidence": "SaveBudget::updateOrCreate; BudgetController::destroy",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "GUARDED_WRITE",
+        "UPDATE": "GUARDED_WRITE",
+        "DELETE": "GUARDED_WRITE"
+      },
+      "seed": [
+        {
+          "id": 1,
+          "user_id": 1,
+          "category_id": 1,
+          "amount": 1
+        },
+        {
+          "id": 2,
+          "user_id": 2,
+          "category_id": 2,
+          "amount": 2
+        }
+      ],
+      "select_needed": true
+    },
+    "chart_of_accounts": {
+      "primary_key": [
+        "id"
+      ],
+      "columns": {
+        "id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NOT NULL",
+        "parent_id": "BIGINT UNSIGNED NULL",
+        "name": "VARCHAR(255) NOT NULL",
+        "code": "VARCHAR(255) NOT NULL"
+      },
+      "values": {
+        "id": 1,
+        "user_id": 1,
+        "parent_id": null,
+        "name": "fixture",
+        "code": "fixture1"
+      },
+      "references": [
+        {
+          "columns": [
+            "user_id"
+          ],
+          "table": "users",
+          "parent_columns": [
+            "id"
+          ]
+        },
+        {
+          "columns": [
+            "parent_id",
+            "user_id"
+          ],
+          "table": "chart_of_accounts",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      ],
+      "needed": [
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "lock_read": true,
+      "mutable": "name",
+      "evidence": "Create/Update/DeleteChartAccount; ChartHierarchy locks",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "GUARDED_WRITE",
+        "UPDATE": "GUARDED_WRITE",
+        "DELETE": "GUARDED_WRITE"
+      },
+      "seed": [
+        {
+          "id": 1,
+          "user_id": 1,
+          "parent_id": null,
+          "name": "fixture",
+          "code": "fixture1"
+        },
+        {
+          "id": 2,
+          "user_id": 2,
+          "parent_id": null,
+          "name": "fixture",
+          "code": "fixture2"
+        }
+      ],
+      "select_needed": true
+    },
+    "journal_entries": {
+      "primary_key": [
+        "id"
+      ],
+      "columns": {
+        "id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NOT NULL",
+        "reversal_of_id": "BIGINT UNSIGNED NULL",
+        "reference": "VARCHAR(255) NOT NULL"
+      },
+      "values": {
+        "id": 1,
+        "user_id": 1,
+        "reversal_of_id": null,
+        "reference": "fixture"
+      },
+      "references": [
+        {
+          "columns": [
+            "user_id"
+          ],
+          "table": "users",
+          "parent_columns": [
+            "id"
+          ]
+        },
+        {
+          "columns": [
+            "reversal_of_id",
+            "user_id"
+          ],
+          "table": "journal_entries",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      ],
+      "needed": [
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "lock_read": true,
+      "mutable": "reference",
+      "evidence": "Save/DeleteJournalDraft; PostJournalEntry; ReverseJournalEntry; opening/fiscal posting",
+      "future_routine": true,
+      "classifications": {
+        "INSERT": "GUARDED_WRITE",
+        "UPDATE": "GUARDED_WRITE",
+        "DELETE": "GUARDED_WRITE"
+      },
+      "seed": [
+        {
+          "id": 1,
+          "user_id": 1,
+          "reversal_of_id": null,
+          "reference": "fixture"
+        },
+        {
+          "id": 2,
+          "user_id": 2,
+          "reversal_of_id": null,
+          "reference": "fixture"
+        }
+      ],
+      "select_needed": true
+    },
+    "journal_lines": {
+      "primary_key": [
+        "id"
+      ],
+      "columns": {
+        "id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NOT NULL",
+        "journal_entry_id": "BIGINT UNSIGNED NOT NULL",
+        "chart_account_id": "BIGINT UNSIGNED NOT NULL",
+        "debit": "BIGINT UNSIGNED NOT NULL",
+        "credit": "BIGINT UNSIGNED NOT NULL",
+        "description": "VARCHAR(255) NOT NULL"
+      },
+      "values": {
+        "id": 1,
+        "user_id": 1,
+        "journal_entry_id": 1,
+        "chart_account_id": 1,
+        "debit": 1,
+        "credit": 0,
+        "description": "fixture"
+      },
+      "references": [
+        {
+          "columns": [
+            "journal_entry_id",
+            "user_id"
+          ],
+          "table": "journal_entries",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        },
+        {
+          "columns": [
+            "chart_account_id",
+            "user_id"
+          ],
+          "table": "chart_of_accounts",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      ],
+      "needed": [
+        "INSERT",
+        "DELETE"
+      ],
+      "lock_read": true,
+      "mutable": "description",
+      "evidence": "Save/DeleteJournalDraft replace lines; posting/reversal inserts; DELETE supports locks; no UPDATE of existing lines",
+      "future_routine": true,
+      "classifications": {
+        "INSERT": "GUARDED_WRITE",
+        "UPDATE": "REMOVE_RUNTIME_PRIVILEGE",
+        "DELETE": "GUARDED_WRITE"
+      },
+      "seed": [
+        {
+          "id": 1,
+          "user_id": 1,
+          "journal_entry_id": 1,
+          "chart_account_id": 1,
+          "debit": 1,
+          "credit": 0,
+          "description": "fixture"
+        },
+        {
+          "id": 2,
+          "user_id": 2,
+          "journal_entry_id": 2,
+          "chart_account_id": 2,
+          "debit": 2,
+          "credit": 0,
+          "description": "fixture"
+        },
+        {
+          "id": 3,
+          "user_id": 1,
+          "journal_entry_id": 1,
+          "chart_account_id": 1,
+          "debit": 0,
+          "credit": 1,
+          "description": "fixture"
+        },
+        {
+          "id": 4,
+          "user_id": 2,
+          "journal_entry_id": 2,
+          "chart_account_id": 2,
+          "debit": 0,
+          "credit": 1,
+          "description": "fixture"
+        }
+      ],
+      "select_needed": true
+    },
+    "transactions": {
+      "primary_key": [
+        "id"
+      ],
+      "columns": {
+        "id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NULL",
+        "account_id": "BIGINT UNSIGNED NOT NULL",
+        "category_id": "BIGINT UNSIGNED NOT NULL",
+        "description": "VARCHAR(255) NOT NULL"
+      },
+      "values": {
+        "id": 1,
+        "user_id": 1,
+        "account_id": 1,
+        "category_id": 1,
+        "description": "fixture"
+      },
+      "references": [
+        {
+          "columns": [
+            "user_id"
+          ],
+          "table": "users",
+          "parent_columns": [
+            "id"
+          ]
+        },
+        {
+          "columns": [
+            "account_id"
+          ],
+          "table": "accounts",
+          "parent_columns": [
+            "id"
+          ]
+        },
+        {
+          "columns": [
+            "category_id"
+          ],
+          "table": "categories",
+          "parent_columns": [
+            "id"
+          ]
+        }
+      ],
+      "needed": [
+        "INSERT"
+      ],
+      "lock_read": false,
+      "mutable": "description",
+      "evidence": "PostTransaction inserts only; CaptureOperationalReconciliationBoundary is unwired maintenance",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "GUARDED_WRITE",
+        "UPDATE": "REMOVE_RUNTIME_PRIVILEGE",
+        "DELETE": "REMOVE_RUNTIME_PRIVILEGE"
+      },
+      "seed": [
+        {
+          "id": 1,
+          "user_id": 1,
+          "account_id": 1,
+          "category_id": 1,
+          "description": "fixture"
+        },
+        {
+          "id": 2,
+          "user_id": 2,
+          "account_id": 2,
+          "category_id": 2,
+          "description": "fixture"
+        }
+      ],
+      "select_needed": true
+    },
+    "accounting_periods": {
+      "primary_key": [
+        "id"
+      ],
+      "columns": {
+        "id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NOT NULL",
+        "status": "VARCHAR(255) NOT NULL"
+      },
+      "values": {
+        "id": 1,
+        "user_id": 1,
+        "status": "open"
+      },
+      "references": [
+        {
+          "columns": [
+            "user_id"
+          ],
+          "table": "users",
+          "parent_columns": [
+            "id"
+          ]
+        }
+      ],
+      "needed": [
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "lock_read": true,
+      "mutable": "status",
+      "evidence": "AccountingPeriodController Create/Update/Close/Reopen/Delete actions",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "GUARDED_WRITE",
+        "UPDATE": "GUARDED_WRITE",
+        "DELETE": "GUARDED_WRITE"
+      },
+      "seed": [
+        {
+          "id": 1,
+          "user_id": 1,
+          "status": "open"
+        },
+        {
+          "id": 2,
+          "user_id": 2,
+          "status": "open"
+        }
+      ],
+      "select_needed": true
+    },
+    "operational_accounting_integrations": {
+      "primary_key": [
+        "user_id"
+      ],
+      "columns": {
+        "user_id": "BIGINT UNSIGNED NOT NULL",
+        "state": "VARCHAR(255) NOT NULL"
+      },
+      "values": {
+        "user_id": 1,
+        "state": "legacy"
+      },
+      "references": [
+        {
+          "columns": [
+            "user_id"
+          ],
+          "table": "users",
+          "parent_columns": [
+            "id"
+          ]
+        }
+      ],
+      "needed": [
+        "UPDATE"
+      ],
+      "lock_read": true,
+      "mutable": "state",
+      "evidence": "PostTransaction and accounting actions invalidate metadata; Begin/Complete/Ready are unwired maintenance",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "REMOVE_RUNTIME_PRIVILEGE",
+        "UPDATE": "GUARDED_WRITE",
+        "DELETE": "REMOVE_RUNTIME_PRIVILEGE"
+      },
+      "seed": [
+        {
+          "user_id": 1,
+          "state": "legacy"
+        },
+        {
+          "user_id": 2,
+          "state": "legacy"
+        }
+      ],
+      "select_needed": true
+    },
+    "operational_accounting_account_scope": {
+      "primary_key": [
+        "account_id"
+      ],
+      "columns": {
+        "account_id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NOT NULL"
+      },
+      "values": {
+        "account_id": 1,
+        "user_id": 1
+      },
+      "references": [
+        {
+          "columns": [
+            "user_id"
+          ],
+          "table": "users",
+          "parent_columns": [
+            "id"
+          ]
+        },
+        {
+          "columns": [
+            "account_id",
+            "user_id"
+          ],
+          "table": "accounts",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      ],
+      "needed": [],
+      "lock_read": false,
+      "mutable": "user_id",
+      "evidence": "OperationalReconciliationChartDependencies uses sharedLock; no request/worker scope mutations",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "REMOVE_RUNTIME_PRIVILEGE",
+        "UPDATE": "REMOVE_RUNTIME_PRIVILEGE",
+        "DELETE": "REMOVE_RUNTIME_PRIVILEGE"
+      },
+      "seed": [
+        {
+          "account_id": 1,
+          "user_id": 1
+        },
+        {
+          "account_id": 2,
+          "user_id": 2
+        }
+      ],
+      "select_needed": true
+    },
+    "operational_account_mappings": {
+      "primary_key": [
+        "account_id"
+      ],
+      "columns": {
+        "account_id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NOT NULL",
+        "chart_account_id": "BIGINT UNSIGNED NOT NULL"
+      },
+      "values": {
+        "account_id": 1,
+        "user_id": 1,
+        "chart_account_id": 1
+      },
+      "references": [
+        {
+          "columns": [
+            "account_id",
+            "user_id"
+          ],
+          "table": "accounts",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        },
+        {
+          "columns": [
+            "chart_account_id",
+            "user_id"
+          ],
+          "table": "chart_of_accounts",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      ],
+      "needed": [],
+      "lock_read": false,
+      "mutable": "chart_account_id",
+      "evidence": "ChartDependencies reads with sharedLock; MapOperationalAccount exists but has no route/worker caller",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "REMOVE_RUNTIME_PRIVILEGE",
+        "UPDATE": "REMOVE_RUNTIME_PRIVILEGE",
+        "DELETE": "REMOVE_RUNTIME_PRIVILEGE"
+      },
+      "seed": [
+        {
+          "account_id": 1,
+          "user_id": 1,
+          "chart_account_id": 1
+        },
+        {
+          "account_id": 2,
+          "user_id": 2,
+          "chart_account_id": 2
+        }
+      ],
+      "select_needed": true
+    },
+    "operational_accounting_category_scope": {
+      "primary_key": [
+        "category_id"
+      ],
+      "columns": {
+        "category_id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NOT NULL"
+      },
+      "values": {
+        "category_id": 1,
+        "user_id": 1
+      },
+      "references": [
+        {
+          "columns": [
+            "user_id"
+          ],
+          "table": "users",
+          "parent_columns": [
+            "id"
+          ]
+        },
+        {
+          "columns": [
+            "category_id",
+            "user_id"
+          ],
+          "table": "categories",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      ],
+      "needed": [],
+      "lock_read": false,
+      "mutable": "user_id",
+      "evidence": "OperationalReconciliationChartDependencies uses sharedLock; no request/worker scope mutations",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "REMOVE_RUNTIME_PRIVILEGE",
+        "UPDATE": "REMOVE_RUNTIME_PRIVILEGE",
+        "DELETE": "REMOVE_RUNTIME_PRIVILEGE"
+      },
+      "seed": [
+        {
+          "category_id": 1,
+          "user_id": 1
+        },
+        {
+          "category_id": 2,
+          "user_id": 2
+        }
+      ],
+      "select_needed": true
+    },
+    "operational_category_mappings": {
+      "primary_key": [
+        "category_id"
+      ],
+      "columns": {
+        "category_id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NOT NULL",
+        "chart_account_id": "BIGINT UNSIGNED NOT NULL",
+        "reviewed_by": "BIGINT UNSIGNED NULL"
+      },
+      "values": {
+        "category_id": 1,
+        "user_id": 1,
+        "chart_account_id": 1,
+        "reviewed_by": null
+      },
+      "references": [
+        {
+          "columns": [
+            "category_id",
+            "user_id"
+          ],
+          "table": "categories",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        },
+        {
+          "columns": [
+            "chart_account_id",
+            "user_id"
+          ],
+          "table": "chart_of_accounts",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        },
+        {
+          "columns": [
+            "reviewed_by"
+          ],
+          "table": "users",
+          "parent_columns": [
+            "id"
+          ]
+        }
+      ],
+      "needed": [],
+      "lock_read": false,
+      "mutable": "chart_account_id",
+      "evidence": "ChartDependencies reads with sharedLock; MapOperationalCategory exists but has no route/worker caller",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "REMOVE_RUNTIME_PRIVILEGE",
+        "UPDATE": "REMOVE_RUNTIME_PRIVILEGE",
+        "DELETE": "REMOVE_RUNTIME_PRIVILEGE"
+      },
+      "seed": [
+        {
+          "category_id": 1,
+          "user_id": 1,
+          "chart_account_id": 1,
+          "reviewed_by": null
+        },
+        {
+          "category_id": 2,
+          "user_id": 2,
+          "chart_account_id": 2,
+          "reviewed_by": null
+        }
+      ],
+      "select_needed": true
+    },
+    "opening_balance_batches": {
+      "primary_key": [
+        "id"
+      ],
+      "columns": {
+        "id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NOT NULL",
+        "journal_entry_id": "BIGINT UNSIGNED NULL",
+        "status": "VARCHAR(255) NOT NULL"
+      },
+      "values": {
+        "id": 1,
+        "user_id": 1,
+        "journal_entry_id": null,
+        "status": "draft"
+      },
+      "references": [
+        {
+          "columns": [
+            "user_id"
+          ],
+          "table": "users",
+          "parent_columns": [
+            "id"
+          ]
+        },
+        {
+          "columns": [
+            "journal_entry_id",
+            "user_id"
+          ],
+          "table": "journal_entries",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      ],
+      "needed": [
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "lock_read": true,
+      "mutable": "status",
+      "evidence": "Save/Post/DeleteOpeningBalanceDraft and PostOpeningBalanceBatch",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "GUARDED_WRITE",
+        "UPDATE": "GUARDED_WRITE",
+        "DELETE": "GUARDED_WRITE"
+      },
+      "seed": [
+        {
+          "id": 1,
+          "user_id": 1,
+          "journal_entry_id": null,
+          "status": "draft"
+        },
+        {
+          "id": 2,
+          "user_id": 2,
+          "journal_entry_id": null,
+          "status": "draft"
+        }
+      ],
+      "select_needed": true
+    },
+    "opening_balance_lines": {
+      "primary_key": [
+        "id"
+      ],
+      "columns": {
+        "id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NOT NULL",
+        "batch_id": "BIGINT UNSIGNED NOT NULL",
+        "chart_account_id": "BIGINT UNSIGNED NOT NULL",
+        "debit": "BIGINT UNSIGNED NOT NULL",
+        "credit": "BIGINT UNSIGNED NOT NULL"
+      },
+      "values": {
+        "id": 1,
+        "user_id": 1,
+        "batch_id": 1,
+        "chart_account_id": 1,
+        "debit": 1,
+        "credit": 0
+      },
+      "references": [
+        {
+          "columns": [
+            "batch_id",
+            "user_id"
+          ],
+          "table": "opening_balance_batches",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        },
+        {
+          "columns": [
+            "chart_account_id",
+            "user_id"
+          ],
+          "table": "chart_of_accounts",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      ],
+      "needed": [
+        "INSERT",
+        "DELETE"
+      ],
+      "lock_read": true,
+      "mutable": "debit",
+      "evidence": "Draft save replaces lines; deletion; DELETE supports locks; no UPDATE",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "GUARDED_WRITE",
+        "UPDATE": "REMOVE_RUNTIME_PRIVILEGE",
+        "DELETE": "GUARDED_WRITE"
+      },
+      "seed": [
+        {
+          "id": 1,
+          "user_id": 1,
+          "batch_id": 1,
+          "chart_account_id": 1,
+          "debit": 1,
+          "credit": 0
+        },
+        {
+          "id": 2,
+          "user_id": 2,
+          "batch_id": 2,
+          "chart_account_id": 2,
+          "debit": 2,
+          "credit": 0
+        }
+      ],
+      "select_needed": true
+    },
+    "journal_line_allocations": {
+      "primary_key": [
+        "id"
+      ],
+      "columns": {
+        "id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NOT NULL",
+        "journal_entry_id": "BIGINT UNSIGNED NOT NULL",
+        "debit_line_id": "BIGINT UNSIGNED NOT NULL",
+        "credit_line_id": "BIGINT UNSIGNED NOT NULL",
+        "amount": "BIGINT UNSIGNED NOT NULL"
+      },
+      "values": {
+        "id": 1,
+        "user_id": 1,
+        "journal_entry_id": 1,
+        "debit_line_id": 1,
+        "credit_line_id": 3,
+        "amount": 1
+      },
+      "references": [
+        {
+          "columns": [
+            "journal_entry_id",
+            "user_id"
+          ],
+          "table": "journal_entries",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        },
+        {
+          "columns": [
+            "user_id",
+            "journal_entry_id",
+            "debit_line_id"
+          ],
+          "table": "journal_lines",
+          "parent_columns": [
+            "user_id",
+            "journal_entry_id",
+            "id"
+          ]
+        },
+        {
+          "columns": [
+            "user_id",
+            "journal_entry_id",
+            "credit_line_id"
+          ],
+          "table": "journal_lines",
+          "parent_columns": [
+            "user_id",
+            "journal_entry_id",
+            "id"
+          ]
+        }
+      ],
+      "needed": [
+        "INSERT",
+        "DELETE"
+      ],
+      "lock_read": true,
+      "mutable": "amount",
+      "evidence": "Save/DeleteJournalDraft; CompleteHistoricalCashFlowJournal; CopyReversalCashFlowAllocations; DELETE supports locks",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "GUARDED_WRITE",
+        "UPDATE": "REMOVE_RUNTIME_PRIVILEGE",
+        "DELETE": "GUARDED_WRITE"
+      },
+      "seed": [
+        {
+          "id": 1,
+          "user_id": 1,
+          "journal_entry_id": 1,
+          "debit_line_id": 1,
+          "credit_line_id": 3,
+          "amount": 1
+        },
+        {
+          "id": 2,
+          "user_id": 2,
+          "journal_entry_id": 2,
+          "debit_line_id": 2,
+          "credit_line_id": 4,
+          "amount": 2
+        }
+      ],
+      "select_needed": true
+    },
+    "cash_flow_journal_completions": {
+      "primary_key": [
+        "id"
+      ],
+      "columns": {
+        "id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NOT NULL",
+        "journal_entry_id": "BIGINT UNSIGNED NOT NULL",
+        "completed_at": "VARCHAR(255) NOT NULL"
+      },
+      "values": {
+        "id": 1,
+        "user_id": 1,
+        "journal_entry_id": 1,
+        "completed_at": "2026-10-15 00:00:00"
+      },
+      "references": [
+        {
+          "columns": [
+            "journal_entry_id",
+            "user_id"
+          ],
+          "table": "journal_entries",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      ],
+      "needed": [
+        "INSERT"
+      ],
+      "lock_read": true,
+      "mutable": "completed_at",
+      "evidence": "PostJournalEntry/ReverseJournalEntry/CompleteHistoricalCashFlowJournal INSERT; FOR UPDATE reads need retained UPDATE",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "GUARDED_WRITE",
+        "UPDATE": "LOCK_ONLY_UPDATE",
+        "DELETE": "REMOVE_RUNTIME_PRIVILEGE"
+      },
+      "seed": [
+        {
+          "id": 1,
+          "user_id": 1,
+          "journal_entry_id": 1,
+          "completed_at": "2026-10-15 00:00:00"
+        },
+        {
+          "id": 2,
+          "user_id": 2,
+          "journal_entry_id": 2,
+          "completed_at": "2026-10-15 00:00:00"
+        }
+      ],
+      "select_needed": true
+    },
+    "fiscal_year_closes": {
+      "primary_key": [
+        "id"
+      ],
+      "columns": {
+        "id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NOT NULL",
+        "retained_earnings_account_id": "BIGINT UNSIGNED NOT NULL",
+        "journal_entry_id": "BIGINT UNSIGNED NULL",
+        "closed_at": "VARCHAR(255) NOT NULL"
+      },
+      "values": {
+        "id": 1,
+        "user_id": 1,
+        "retained_earnings_account_id": 1,
+        "journal_entry_id": null,
+        "closed_at": "2026-10-15 00:00:00"
+      },
+      "references": [
+        {
+          "columns": [
+            "user_id"
+          ],
+          "table": "users",
+          "parent_columns": [
+            "id"
+          ]
+        },
+        {
+          "columns": [
+            "retained_earnings_account_id",
+            "user_id"
+          ],
+          "table": "chart_of_accounts",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        },
+        {
+          "columns": [
+            "journal_entry_id",
+            "user_id"
+          ],
+          "table": "journal_entries",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      ],
+      "needed": [
+        "INSERT"
+      ],
+      "lock_read": true,
+      "mutable": "closed_at",
+      "evidence": "CloseFiscalYear INSERT; overlap/reversal/completion FOR UPDATE need retained UPDATE",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "GUARDED_WRITE",
+        "UPDATE": "LOCK_ONLY_UPDATE",
+        "DELETE": "REMOVE_RUNTIME_PRIVILEGE"
+      },
+      "seed": [
+        {
+          "id": 1,
+          "user_id": 1,
+          "retained_earnings_account_id": 1,
+          "journal_entry_id": null,
+          "closed_at": "2026-10-15 00:00:00"
+        },
+        {
+          "id": 2,
+          "user_id": 2,
+          "retained_earnings_account_id": 2,
+          "journal_entry_id": null,
+          "closed_at": "2026-10-15 00:00:00"
+        }
+      ],
+      "select_needed": true
+    },
+    "operational_transaction_journals": {
+      "primary_key": [
+        "transaction_id"
+      ],
+      "columns": {
+        "transaction_id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NOT NULL",
+        "journal_entry_id": "BIGINT UNSIGNED NOT NULL",
+        "account_id": "BIGINT UNSIGNED NOT NULL",
+        "category_id": "BIGINT UNSIGNED NOT NULL"
+      },
+      "values": {
+        "transaction_id": 1,
+        "user_id": 1,
+        "journal_entry_id": 1,
+        "account_id": 1,
+        "category_id": 1
+      },
+      "references": [
+        {
+          "columns": [
+            "transaction_id",
+            "user_id"
+          ],
+          "table": "transactions",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        },
+        {
+          "columns": [
+            "journal_entry_id",
+            "user_id"
+          ],
+          "table": "journal_entries",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        },
+        {
+          "columns": [
+            "account_id",
+            "user_id"
+          ],
+          "table": "operational_account_mappings",
+          "parent_columns": [
+            "account_id",
+            "user_id"
+          ]
+        },
+        {
+          "columns": [
+            "category_id",
+            "user_id"
+          ],
+          "table": "operational_category_mappings",
+          "parent_columns": [
+            "category_id",
+            "user_id"
+          ]
+        }
+      ],
+      "needed": [],
+      "lock_read": false,
+      "mutable": "user_id",
+      "evidence": "Read by ReverseJournalEntry/history; no runtime finalizer exists; direct mutations routine-only later",
+      "future_routine": true,
+      "classifications": {
+        "INSERT": "TRUSTED_ROUTINE_ONLY_LATER",
+        "UPDATE": "TRUSTED_ROUTINE_ONLY_LATER",
+        "DELETE": "TRUSTED_ROUTINE_ONLY_LATER"
+      },
+      "seed": [
+        {
+          "transaction_id": 1,
+          "user_id": 1,
+          "journal_entry_id": 1,
+          "account_id": 1,
+          "category_id": 1
+        },
+        {
+          "transaction_id": 2,
+          "user_id": 2,
+          "journal_entry_id": 2,
+          "account_id": 2,
+          "category_id": 2
+        }
+      ],
+      "select_needed": true
+    },
+    "operational_reconciliation_reviews": {
+      "primary_key": [
+        "id"
+      ],
+      "columns": {
+        "id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NOT NULL",
+        "reviewed_by": "BIGINT UNSIGNED NULL",
+        "supersedes_review_id": "BIGINT UNSIGNED NULL",
+        "reference": "VARCHAR(255) NOT NULL"
+      },
+      "values": {
+        "id": 1,
+        "user_id": 1,
+        "reviewed_by": null,
+        "supersedes_review_id": null,
+        "reference": "fixture"
+      },
+      "references": [
+        {
+          "columns": [
+            "user_id"
+          ],
+          "table": "users",
+          "parent_columns": [
+            "id"
+          ]
+        },
+        {
+          "columns": [
+            "reviewed_by"
+          ],
+          "table": "users",
+          "parent_columns": [
+            "id"
+          ]
+        },
+        {
+          "columns": [
+            "supersedes_review_id",
+            "user_id"
+          ],
+          "table": "operational_reconciliation_reviews",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      ],
+      "needed": [],
+      "lock_read": false,
+      "mutable": "reference",
+      "evidence": "Request Chart/HistoryDependencies uses sharedLock; Complete/Ready actions unwired; UPDATE belongs to separate maintenance profile",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "REMOVE_RUNTIME_PRIVILEGE",
+        "UPDATE": "REMOVE_RUNTIME_PRIVILEGE",
+        "DELETE": "REMOVE_RUNTIME_PRIVILEGE"
+      },
+      "seed": [
+        {
+          "id": 1,
+          "user_id": 1,
+          "reviewed_by": null,
+          "supersedes_review_id": null,
+          "reference": "fixture"
+        },
+        {
+          "id": 2,
+          "user_id": 2,
+          "reviewed_by": null,
+          "supersedes_review_id": null,
+          "reference": "fixture"
+        }
+      ],
+      "select_needed": true
+    },
+    "operational_reconciliation_charts": {
+      "primary_key": [
+        "review_id",
+        "chart_account_id"
+      ],
+      "columns": {
+        "review_id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NOT NULL",
+        "chart_account_id": "BIGINT UNSIGNED NOT NULL"
+      },
+      "values": {
+        "review_id": 1,
+        "user_id": 1,
+        "chart_account_id": 1
+      },
+      "references": [
+        {
+          "columns": [
+            "review_id",
+            "user_id"
+          ],
+          "table": "operational_reconciliation_reviews",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        },
+        {
+          "columns": [
+            "chart_account_id",
+            "user_id"
+          ],
+          "table": "chart_of_accounts",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      ],
+      "needed": [],
+      "lock_read": false,
+      "mutable": "user_id",
+      "evidence": "Chart/HistoryDependencies shared reads; evidence population is controlled maintenance, no request/worker writer",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "REMOVE_RUNTIME_PRIVILEGE",
+        "UPDATE": "REMOVE_RUNTIME_PRIVILEGE",
+        "DELETE": "REMOVE_RUNTIME_PRIVILEGE"
+      },
+      "seed": [
+        {
+          "review_id": 1,
+          "user_id": 1,
+          "chart_account_id": 1
+        },
+        {
+          "review_id": 2,
+          "user_id": 2,
+          "chart_account_id": 2
+        }
+      ],
+      "select_needed": true
+    },
+    "operational_reconciliation_accounts": {
+      "primary_key": [
+        "review_id",
+        "account_id"
+      ],
+      "columns": {
+        "review_id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NOT NULL",
+        "account_id": "BIGINT UNSIGNED NOT NULL",
+        "chart_account_id": "BIGINT UNSIGNED NOT NULL"
+      },
+      "values": {
+        "review_id": 1,
+        "user_id": 1,
+        "account_id": 1,
+        "chart_account_id": 1
+      },
+      "references": [
+        {
+          "columns": [
+            "review_id",
+            "user_id"
+          ],
+          "table": "operational_reconciliation_reviews",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        },
+        {
+          "columns": [
+            "account_id",
+            "user_id"
+          ],
+          "table": "accounts",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        },
+        {
+          "columns": [
+            "review_id",
+            "user_id",
+            "chart_account_id"
+          ],
+          "table": "operational_reconciliation_charts",
+          "parent_columns": [
+            "review_id",
+            "user_id",
+            "chart_account_id"
+          ]
+        }
+      ],
+      "needed": [],
+      "lock_read": false,
+      "mutable": "user_id",
+      "evidence": "Chart/HistoryDependencies shared reads; evidence population is controlled maintenance, no request/worker writer",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "REMOVE_RUNTIME_PRIVILEGE",
+        "UPDATE": "REMOVE_RUNTIME_PRIVILEGE",
+        "DELETE": "REMOVE_RUNTIME_PRIVILEGE"
+      },
+      "seed": [
+        {
+          "review_id": 1,
+          "user_id": 1,
+          "account_id": 1,
+          "chart_account_id": 1
+        },
+        {
+          "review_id": 2,
+          "user_id": 2,
+          "account_id": 2,
+          "chart_account_id": 2
+        }
+      ],
+      "select_needed": false
+    },
+    "operational_reconciliation_categories": {
+      "primary_key": [
+        "review_id",
+        "category_id"
+      ],
+      "columns": {
+        "review_id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NOT NULL",
+        "category_id": "BIGINT UNSIGNED NOT NULL",
+        "chart_account_id": "BIGINT UNSIGNED NOT NULL"
+      },
+      "values": {
+        "review_id": 1,
+        "user_id": 1,
+        "category_id": 1,
+        "chart_account_id": 1
+      },
+      "references": [
+        {
+          "columns": [
+            "review_id",
+            "user_id"
+          ],
+          "table": "operational_reconciliation_reviews",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        },
+        {
+          "columns": [
+            "category_id",
+            "user_id"
+          ],
+          "table": "categories",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        },
+        {
+          "columns": [
+            "review_id",
+            "user_id",
+            "chart_account_id"
+          ],
+          "table": "operational_reconciliation_charts",
+          "parent_columns": [
+            "review_id",
+            "user_id",
+            "chart_account_id"
+          ]
+        }
+      ],
+      "needed": [],
+      "lock_read": false,
+      "mutable": "user_id",
+      "evidence": "Chart/HistoryDependencies shared reads; evidence population is controlled maintenance, no request/worker writer",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "REMOVE_RUNTIME_PRIVILEGE",
+        "UPDATE": "REMOVE_RUNTIME_PRIVILEGE",
+        "DELETE": "REMOVE_RUNTIME_PRIVILEGE"
+      },
+      "seed": [
+        {
+          "review_id": 1,
+          "user_id": 1,
+          "category_id": 1,
+          "chart_account_id": 1
+        },
+        {
+          "review_id": 2,
+          "user_id": 2,
+          "category_id": 2,
+          "chart_account_id": 2
+        }
+      ],
+      "select_needed": false
+    },
+    "operational_reconciliation_journals": {
+      "primary_key": [
+        "review_id",
+        "journal_entry_id"
+      ],
+      "columns": {
+        "review_id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NOT NULL",
+        "journal_entry_id": "BIGINT UNSIGNED NOT NULL"
+      },
+      "values": {
+        "review_id": 1,
+        "user_id": 1,
+        "journal_entry_id": 1
+      },
+      "references": [
+        {
+          "columns": [
+            "review_id",
+            "user_id"
+          ],
+          "table": "operational_reconciliation_reviews",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        },
+        {
+          "columns": [
+            "journal_entry_id",
+            "user_id"
+          ],
+          "table": "journal_entries",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        }
+      ],
+      "needed": [],
+      "lock_read": false,
+      "mutable": "user_id",
+      "evidence": "Chart/HistoryDependencies shared reads; evidence population is controlled maintenance, no request/worker writer",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "REMOVE_RUNTIME_PRIVILEGE",
+        "UPDATE": "REMOVE_RUNTIME_PRIVILEGE",
+        "DELETE": "REMOVE_RUNTIME_PRIVILEGE"
+      },
+      "seed": [
+        {
+          "review_id": 1,
+          "user_id": 1,
+          "journal_entry_id": 1
+        },
+        {
+          "review_id": 2,
+          "user_id": 2,
+          "journal_entry_id": 2
+        }
+      ],
+      "select_needed": true
+    },
+    "operational_reconciliation_attributions": {
+      "primary_key": [
+        "id"
+      ],
+      "columns": {
+        "id": "BIGINT UNSIGNED NOT NULL",
+        "review_id": "BIGINT UNSIGNED NOT NULL",
+        "user_id": "BIGINT UNSIGNED NOT NULL",
+        "journal_entry_id": "BIGINT UNSIGNED NOT NULL",
+        "journal_line_id": "BIGINT UNSIGNED NOT NULL",
+        "account_id": "BIGINT UNSIGNED NOT NULL",
+        "amount": "BIGINT UNSIGNED NOT NULL"
+      },
+      "values": {
+        "id": 1,
+        "review_id": 1,
+        "user_id": 1,
+        "journal_entry_id": 1,
+        "journal_line_id": 1,
+        "account_id": 1,
+        "amount": 1
+      },
+      "references": [
+        {
+          "columns": [
+            "review_id",
+            "user_id"
+          ],
+          "table": "operational_reconciliation_reviews",
+          "parent_columns": [
+            "id",
+            "user_id"
+          ]
+        },
+        {
+          "columns": [
+            "review_id",
+            "user_id",
+            "journal_entry_id"
+          ],
+          "table": "operational_reconciliation_journals",
+          "parent_columns": [
+            "review_id",
+            "user_id",
+            "journal_entry_id"
+          ]
+        },
+        {
+          "columns": [
+            "user_id",
+            "journal_entry_id",
+            "journal_line_id"
+          ],
+          "table": "journal_lines",
+          "parent_columns": [
+            "user_id",
+            "journal_entry_id",
+            "id"
+          ]
+        },
+        {
+          "columns": [
+            "review_id",
+            "user_id",
+            "account_id"
+          ],
+          "table": "operational_reconciliation_accounts",
+          "parent_columns": [
+            "review_id",
+            "user_id",
+            "account_id"
+          ]
+        }
+      ],
+      "needed": [],
+      "lock_read": false,
+      "mutable": "amount",
+      "evidence": "HistoryDependencies/evidence read; no request/worker mutation",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "REMOVE_RUNTIME_PRIVILEGE",
+        "UPDATE": "REMOVE_RUNTIME_PRIVILEGE",
+        "DELETE": "REMOVE_RUNTIME_PRIVILEGE"
+      },
+      "seed": [
+        {
+          "id": 1,
+          "review_id": 1,
+          "user_id": 1,
+          "journal_entry_id": 1,
+          "journal_line_id": 1,
+          "account_id": 1,
+          "amount": 1
+        },
+        {
+          "id": 2,
+          "review_id": 2,
+          "user_id": 2,
+          "journal_entry_id": 2,
+          "journal_line_id": 2,
+          "account_id": 2,
+          "amount": 2
+        }
+      ],
+      "select_needed": false
+    },
+    "sessions": {
+      "primary_key": [
+        "id"
+      ],
+      "columns": {
+        "id": "VARCHAR(255) NOT NULL",
+        "user_id": "BIGINT UNSIGNED NULL",
+        "payload": "VARCHAR(255) NOT NULL",
+        "last_activity": "BIGINT UNSIGNED NOT NULL"
+      },
+      "values": {
+        "id": "matrix1",
+        "user_id": 1,
+        "payload": "fixture",
+        "last_activity": 1
+      },
+      "references": [],
+      "needed": [
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "lock_read": false,
+      "mutable": "payload",
+      "evidence": "SESSION_DRIVER=database; DatabaseSessionHandler writes/sweeps; user_id has no FK in actual schema",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "GUARDED_WRITE",
+        "UPDATE": "GUARDED_WRITE",
+        "DELETE": "GUARDED_WRITE"
+      },
+      "seed": [
+        {
+          "id": "matrix1",
+          "user_id": 1,
+          "payload": "fixture",
+          "last_activity": 1
+        },
+        {
+          "id": "matrix2",
+          "user_id": 2,
+          "payload": "fixture",
+          "last_activity": 2
+        }
+      ],
+      "select_needed": true
+    },
+    "cache": {
+      "primary_key": [
+        "key"
+      ],
+      "columns": {
+        "key": "VARCHAR(255) NOT NULL",
+        "value": "VARCHAR(255) NOT NULL",
+        "expiration": "BIGINT UNSIGNED NOT NULL"
+      },
+      "values": {
+        "key": "matrix1",
+        "value": "fixture",
+        "expiration": 1
+      },
+      "references": [],
+      "needed": [
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "lock_read": true,
+      "mutable": "value",
+      "evidence": "CACHE_STORE=database; login throttle RateLimiter/DatabaseStore add/upsert/increment/delete",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "GUARDED_WRITE",
+        "UPDATE": "GUARDED_WRITE",
+        "DELETE": "GUARDED_WRITE"
+      },
+      "seed": [
+        {
+          "key": "matrix1",
+          "value": "fixture",
+          "expiration": 1
+        },
+        {
+          "key": "matrix2",
+          "value": "fixture",
+          "expiration": 2
+        }
+      ],
+      "select_needed": true
+    },
+    "jobs": {
+      "primary_key": [
+        "id"
+      ],
+      "columns": {
+        "id": "BIGINT UNSIGNED NOT NULL",
+        "queue": "VARCHAR(255) NOT NULL",
+        "payload": "VARCHAR(255) NOT NULL",
+        "attempts": "BIGINT UNSIGNED NOT NULL"
+      },
+      "values": {
+        "id": 1,
+        "queue": "default",
+        "payload": "fixture",
+        "attempts": 1
+      },
+      "references": [],
+      "needed": [
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "lock_read": true,
+      "mutable": "payload",
+      "evidence": "QUEUE_CONNECTION=database; composer dev queue:listen; DatabaseQueue insert/reserve/release/delete",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "GUARDED_WRITE",
+        "UPDATE": "GUARDED_WRITE",
+        "DELETE": "GUARDED_WRITE"
+      },
+      "seed": [
+        {
+          "id": 1,
+          "queue": "default",
+          "payload": "fixture",
+          "attempts": 1
+        },
+        {
+          "id": 2,
+          "queue": "default",
+          "payload": "fixture",
+          "attempts": 2
+        }
+      ],
+      "select_needed": true
+    },
+    "failed_jobs": {
+      "primary_key": [
+        "id"
+      ],
+      "columns": {
+        "id": "BIGINT UNSIGNED NOT NULL",
+        "uuid": "VARCHAR(255) NOT NULL",
+        "exception": "VARCHAR(255) NOT NULL"
+      },
+      "values": {
+        "id": 1,
+        "uuid": "matrix1",
+        "exception": "fixture"
+      },
+      "references": [],
+      "needed": [
+        "INSERT"
+      ],
+      "lock_read": false,
+      "mutable": "exception",
+      "evidence": "DatabaseUuidFailedJobProvider worker failure INSERT; forget/prune/retry are operator maintenance, not normal worker mutations",
+      "future_routine": false,
+      "classifications": {
+        "INSERT": "GUARDED_WRITE",
+        "UPDATE": "REMOVE_RUNTIME_PRIVILEGE",
+        "DELETE": "REMOVE_RUNTIME_PRIVILEGE"
+      },
+      "seed": [
+        {
+          "id": 1,
+          "uuid": "matrix1",
+          "exception": "fixture"
+        },
+        {
+          "id": 2,
+          "uuid": "matrix2",
+          "exception": "fixture"
+        }
+      ],
+      "select_needed": false
+    }
+  }
+}
